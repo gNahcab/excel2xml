@@ -1,5 +1,5 @@
 use serde_json::Value;
-use crate::transfrom2datamodel::errors::DataModelError;
+use crate::json2datamodel::errors::DataModelError;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Label {

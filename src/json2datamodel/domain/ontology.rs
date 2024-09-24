@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use serde_json::{Map, Value};
-use crate::transfrom2datamodel::domain::dasch_list::DaSCHList;
-use crate::transfrom2datamodel::domain::label::LabelWrapper;
-use crate::transfrom2datamodel::domain::property::{Property, PropertyWrapper};
-use crate::transfrom2datamodel::errors::DataModelError;
-use crate::transfrom2datamodel::errors::DataModelError::ParsingError;
+use crate::json2datamodel::domain::dasch_list::DaSCHList;
+use crate::json2datamodel::domain::label::LabelWrapper;
+use crate::json2datamodel::domain::property::{Property, PropertyWrapper};
+use crate::json2datamodel::domain::res_property::ResProperty;
+use crate::json2datamodel::domain::resource::{DMResource, ResourceWrapper};
+use crate::json2datamodel::errors::DataModelError;
+use crate::json2datamodel::errors::DataModelError::ParsingError;
 
 #[derive(Debug, PartialEq)]
 pub struct Ontology {
@@ -46,9 +48,9 @@ impl TransientOntology{
     }
 }
 
-pub fn separate_ontology_and_properties(onto_object: Map<String, Value>) -> Result<(Ontology, Vec<Property>), DataModelError> {
-
+pub fn separate_ontology_properties_resources(onto_object: Map<String, Value>) -> Result<(Ontology, Vec<Property>, Vec<DMResource>), DataModelError> {
     let mut properties: Vec<Property> = vec![];
+    let mut resources: Vec<DMResource> = vec![];
     let mut transient_ontology = TransientOntology::new();
     let name = onto_object.get("name");
     if name.is_none(){
@@ -65,10 +67,17 @@ pub fn separate_ontology_and_properties(onto_object: Map<String, Value>) -> Resu
             "properties" => {
                 let array = value.as_array().expect("properties of ontology must be an array");
                 for raw_prop in array.iter() {
-                    let property = PropertyWrapper(raw_prop.to_owned()).to_property(transient_ontology.name.as_ref().unwrap().to_string());
-
+                    let property = PropertyWrapper(raw_prop.to_owned()).to_property(transient_ontology.name.as_ref().unwrap().to_string())?;
+                    properties.push(property)
                 }
 
+            }
+            "resources" => {
+                        let resources_raw = value.as_array().expect("resources should be a json-array");
+                        for resources_value in resources_raw.iter() {
+                            let resource = ResourceWrapper(resources_value.to_owned()).to_resource()?;
+                            resources.push(resource);
+                        }
             }
             &_ => {
                 // ignore other keys
@@ -77,6 +86,6 @@ pub fn separate_ontology_and_properties(onto_object: Map<String, Value>) -> Resu
         transient_ontology.is_complete()?;
 
     }
-    Ok((Ontology::new(transient_ontology), properties))
+    Ok((Ontology::new(transient_ontology), properties, resources))
 
 }

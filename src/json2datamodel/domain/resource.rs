@@ -1,18 +1,110 @@
 use serde_json::Value;
-use crate::transfrom2datamodel::domain::label::Label;
-use crate::transfrom2datamodel::domain::ontology::Ontology;
-use crate::transfrom2datamodel::domain::res_property::ResProperty;
-use crate::transfrom2datamodel::errors::DataModelError;
+use crate::json2datamodel::domain::label::{Label, LabelWrapper};
+use crate::json2datamodel::domain::ontology::Ontology;
+use crate::json2datamodel::domain::res_property::{ResProperty, ResPropertyWrapper};
+use crate::json2datamodel::errors::DataModelError;
 
 #[derive(Debug, PartialEq)]
-pub struct Resource {
-    name: String,
+pub struct DMResource {
+    pub(crate) name: String,
     labels: Vec<Label>,
-    properties: Vec<ResProperty>
+    super_: String,
+    pub(crate) properties: Vec<ResProperty>
+}
+
+impl DMResource {
+    fn new(transient_resource: TransientResource) -> Self {
+        DMResource{
+            name: transient_resource.name.unwrap(),
+            labels: transient_resource.labels,
+            super_: transient_resource.super_.unwrap(),
+            properties: transient_resource.res_props,
+        }
+    }
+}
+
+struct TransientResource {
+    name: Option<String>,
+    labels: Vec<Label>,
+    super_: Option<String>,
+    res_props: Vec<ResProperty>
+}
+
+
+impl TransientResource {
+    fn new() -> Self {
+        TransientResource{
+            name: None,
+            labels: vec![],
+            super_: None,
+            res_props: vec![],
+        }
+    }
+
+    fn add_name(&mut self, name: String) {
+        self.name = Some(name);
+    }
+    fn add_label(&mut self, label: Label) {
+        self.labels.push(label);
+    }
+    fn add_super(&mut self, super_: String) {
+        self.super_ = Some(super_);
+    }
+    fn add_res_prop(&mut self, res_prop: ResProperty) {
+        self.res_props.push(res_prop);
+    }
+    fn is_complete(&self) -> Result<(), DataModelError> {
+        // resource is complete if name, label, super, at least one res_prop exist
+        if self.name.is_none() {
+            return Err(DataModelError::ParsingError(format!("name is required for resource with labels: '{:?}'", self.labels)));
+        }
+        if self.labels.is_empty() {
+            return Err(DataModelError::ParsingError(format!("at least one label is required for resource with name: '{:?}'", self.name)));
+        }
+        if self.super_.is_none() {
+            return Err(DataModelError::ParsingError(format!("one super is required for resource with name: '{:?}'", self.name)));
+        }
+        if self.res_props.is_empty() {
+            return Err(DataModelError::ParsingError(format!("at least one res_prop is required for resource with name: '{:?}'", self.name)));
+        }
+        Ok(())
+    }
 }
 pub(crate) struct ResourceWrapper(pub(crate) Value);
 impl ResourceWrapper{
-    pub fn to_resource(&self) -> Result<Resource, DataModelError> {
-        todo!()
+    pub fn to_resource(&self) -> Result<DMResource, DataModelError> {
+        let resource_raw = self.0.as_object().expect("resource should be an object");
+        let mut transient_resource = TransientResource::new();
+        for (key, value) in resource_raw.iter(){
+            match key.as_str() {
+                "name" => {
+                    let name = value.as_str().expect("name should be a string").to_string();
+                    transient_resource.add_name(name)
+                }
+                "labels" => {
+                    let labels_raw = value.as_object().expect("labels should be an object");
+
+                    for (key, value) in labels_raw.iter() {
+                        let label = LabelWrapper((key.to_owned(), value.to_owned())).to_label()?;
+                        transient_resource.add_label(label);
+                    }
+                }
+                "super" => {
+                    let super_ = value.as_str().expect("super should be a string").to_string();
+                    transient_resource.add_super(super_);
+                }
+                "cardinalities" => {
+                    let res_props_raw = value.as_array().expect("cardinalities should be an array");
+                    for res_prop_raw in res_props_raw.iter() {
+                        let res_prop = ResPropertyWrapper(res_prop_raw.to_owned()).to_res_prop()?;
+                        transient_resource.add_res_prop(res_prop);
+                    }
+                }
+                _ => {}
+            }
+        }
+        transient_resource.is_complete()?;
+        Ok(DMResource::new(transient_resource))
+
     }
 }

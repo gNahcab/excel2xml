@@ -1,8 +1,8 @@
 pub mod data_model;
 mod ontology;
-mod property;
-mod resource;
-mod res_property;
+pub(crate) mod property;
+pub(crate) mod resource;
+pub(crate) mod res_property;
 mod label;
 mod object;
 mod builder;

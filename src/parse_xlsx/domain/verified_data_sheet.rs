@@ -1,4 +1,3 @@
-todo!();
 /*
 use std::collections::{HashMap, HashSet};
 use crate::json2datamodel::domain::data_model::DataModel;
@@ -47,18 +46,18 @@ fn correct_order(headers: Vec<String>, data_model: &DataModel) -> Result<(), Exc
     resource_props_correct(headers)?;
 
 
-    todo!()
+
 
 }
 
 fn resource_props_correct(headers: Vec<String>) -> Result<(), ExcelDataError> {
     // check if label, id, permissions, iri, ark, bitstream are correctly ordered and separated from other properties
     bitstream_correct(headers)?;
-    todo!()
+
 }
 
 fn bitstream_correct(p0: Vec<String>) -> Result<(), ExcelDataError> {
-    todo!()
+
 }
 
 fn no_duplicates(headers: Vec<String>) -> Result<(), ExcelDataError> {

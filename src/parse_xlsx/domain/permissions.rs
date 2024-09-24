@@ -1,4 +1,4 @@
-use crate::xlsx2data::errors::ExcelDataError;
+use crate::parse_xlsx::errors::ExcelDataError;
 
 #[derive(Debug)]
 pub enum Permissions {

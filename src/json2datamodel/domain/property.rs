@@ -1,13 +1,13 @@
 use std::cmp::PartialEq;
 use serde_json::Value;
-use crate::transfrom2datamodel::domain::label::Label;
-use crate::transfrom2datamodel::domain::object::{Object, ObjectWrapper};
-use crate::transfrom2datamodel::errors::DataModelError;
-use crate::transfrom2datamodel::errors::DataModelError::ParsingError;
+use crate::json2datamodel::domain::label::Label;
+use crate::json2datamodel::domain::object::{Object, ObjectWrapper};
+use crate::json2datamodel::errors::DataModelError;
+use crate::json2datamodel::errors::DataModelError::ParsingError;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Property {
-    name: String,
+    pub(crate) name: String,
     ontology_name: String,
     object: Object,
     labels: Vec<Label>,

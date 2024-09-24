@@ -1,16 +1,20 @@
 use std::collections::HashMap;
-use crate::transfrom2datamodel::domain::data_model::DataModel;
-use crate::transfrom2datamodel::domain::dasch_list::DaSCHList;
-use crate::transfrom2datamodel::domain::ontology::Ontology;
-use crate::transfrom2datamodel::domain::property::Property;
-use crate::transfrom2datamodel::domain::resource::Resource;
+use crate::errors::Excel2XmlError;
+use crate::json2datamodel::domain::data_model::DataModel;
+use crate::json2datamodel::domain::dasch_list::DaSCHList;
+use crate::json2datamodel::domain::ontology::Ontology;
+use crate::json2datamodel::domain::property::Property;
+use crate::json2datamodel::domain::resource::DMResource;
+use crate::json2datamodel::errors::DataModelError;
 use super::Builder;
 pub struct DataModelBuilder {
     pub ontologies: Vec<Ontology>,
     pub properties: Vec<Property>,
-    pub resources: Vec<Resource>,
+    pub resources: Vec<DMResource>,
     pub lists: HashMap<String, DaSCHList>,
 }
+
+
 impl Builder for DataModelBuilder {
     type OutputType = DataModel;
 
@@ -31,12 +35,25 @@ impl Builder for DataModelBuilder {
         self.properties.extend(properties);
     }
 
-    fn add_to_resources(&mut self, resource: Resource) {
-        self.resources.push(resource);
+    fn add_to_resources(&mut self, resource: Vec<DMResource>) {
+        self.resources.extend(resource);
     }
 
     fn add_list(&mut self, name: String, list: DaSCHList) {
         self.lists.insert(name, list);
+    }
+
+    fn is_complete(&self) -> Result<(), DataModelError> {
+        if self.resources.is_empty() {
+            return Err(DataModelError::ParsingError("no resources found".to_string()));
+        }
+        if self.properties.is_empty() {
+            return Err(DataModelError::ParsingError("no properties found".to_string()));
+        }
+        if self.ontologies.is_empty() {
+            return Err(DataModelError::ParsingError("no ontologies found".to_string()));
+        }
+        Ok(())
     }
 
     fn build(self) -> DataModel {

@@ -3,22 +3,13 @@ use calamine::{Data, Range};
 use crate::errors::Excel2XmlError;
 use crate::json2datamodel::domain::data_model::DataModel;
 use crate::json2datamodel::domain::resource::DMResource;
-use crate::xlsx2data::domain::data_sheet2::{DataSheet2, DataSheetWrapper};
-use crate::xlsx2data::domain::data_resource::{DataResource, DataResourceWrapper};
-
-#[derive(Clone)]
-pub struct Worksheet {
-    pub(crate) res_name: String,
-    pub(crate) table: Range<Data>,
-}
-
-impl Worksheet {
-    fn new(res_name: String, table: Range<Data>) -> Self {
-        Worksheet{res_name, table}
-    }
-}
+use crate::parse_info::domain::parse_info::ParseInformation;
+use crate::parse_xlsx::domain::data_sheet::{DataSheet, DataSheetWrapper};
+use crate::parse_xlsx::errors::ExcelDataError;
+use crate::read_xlsx::worksheet::Worksheet;
 
 fn to_worksheets(xlsx_sheets: Vec<(String, Range<Data>)>, data_model: &DataModel, xlsx_path: &str) -> Result<Vec<Worksheet>, Excel2XmlError> {
+    //todo!(use info from hcl-file: which files can be completely ignored, which ones not: separate worksheets : which sheets should be parsed, which can be ignored)
     let mut worksheets: Vec<Worksheet> = vec![];
     // we already know that worksheets.len() cannot be 0 here, we checked that before
     if xlsx_sheets.len() == 1 {
@@ -35,27 +26,28 @@ fn to_worksheets(xlsx_sheets: Vec<(String, Range<Data>)>, data_model: &DataModel
             let worksheet_wrapper = Worksheet::new(res_name, table.to_owned());
             worksheets.push(worksheet_wrapper);
         }
-
     }
     Ok(worksheets)
 }
-pub fn process_worksheets_to_datasheets(xlsx_sheets: Vec<(String, Range<Data>)>, data_model: DataModel, xlsx_path: &str, separator: String) -> Result<Vec<DataSheet2>, Excel2XmlError> {
+
+fn to_datasheets(worksheets: Vec<Worksheet>) -> Result<Vec<DataSheet>, ExcelDataError>{
+    let mut datasheets:Vec<DataSheet> = vec![];
+    for worksheet in worksheets.iter() {
+        let datasheet = DataSheetWrapper(worksheet.to_owned()).to_datasheet()?;
+        datasheets.push(datasheet)
+    }
+    Ok(datasheets)
+}
+pub fn process_worksheets_to_datasheets(xlsx_sheets: Vec<(String, Range<Data>)>, data_model: DataModel, xlsx_path: &str, parse_info:ParseInformation) -> Result<(), Excel2XmlError> {
     // first get res_name to table as worksheet
     let worksheets = to_worksheets(xlsx_sheets, &data_model, xlsx_path)?;
+    let datasheets = to_datasheets(worksheets)?;
+    Ok(())
 
-    // then transform worksheet to raw datasheet-resources
-    let mut datasheets:Vec<DataSheet2> = vec![];
-    for worksheet in worksheets.iter() {
-        datasheets.push(DataSheetWrapper(worksheet.to_owned()).to_datasheet(&data_model)?);
-    }
-    /*
-    // transform datasheet to dataclusters
-    let mut dataclusters:Vec<DataCluster> = vec![];
-    for datasheets in &datasheets {
 
     }
 
-     */
+     /*
     // parse raw dataclusters into trustful data resources
     let mut  resource_name_to_resources: HashMap<String, Vec<DataResource>> = Default::default();
     for datasheet in &datasheets {
@@ -66,9 +58,8 @@ pub fn process_worksheets_to_datasheets(xlsx_sheets: Vec<(String, Range<Data>)>,
         }
         resource_name_to_resources.insert(datasheet.resource_name.to_string(), data_resources);
     }
+    */
     // finally we turn the datasheet-resources into xml-code
-    todo!()
-}
 
 fn which_res_name(inexact_name: &str, dm_res_names: Vec<&str>) -> Result<String, Excel2XmlError> {
     let candidates: Vec<&&str> = dm_res_names.iter().filter(|name| inexact_name.contains(name.to_owned())).collect();

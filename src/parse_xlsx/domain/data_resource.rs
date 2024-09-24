@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use crate::json2datamodel::domain::data_model::DataModel;
 use crate::json2datamodel::domain::property::Property;
 use crate::json2datamodel::domain::resource::DMResource;
-use crate::xlsx2data::domain::permissions::{Permissions, PermissionsWrapper};
-use crate::xlsx2data::domain::prop_name::PropName;
-use crate::xlsx2data::domain::raw_resource_data::RawResourceData;
-use crate::xlsx2data::errors::ExcelDataError;
-use crate::xlsx2data::errors::ExcelDataError::ParsingError;
+use crate::parse_xlsx::domain::permissions::{Permissions, PermissionsWrapper};
+use crate::parse_xlsx::domain::prop_name::PropName;
+use crate::parse_xlsx::domain::raw_resource_data::RawResourceData;
+use crate::parse_xlsx::errors::ExcelDataError;
+use crate::parse_xlsx::errors::ExcelDataError::ParsingError;
 
 pub struct DataResource {
     res_name: String,

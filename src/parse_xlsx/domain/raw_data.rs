@@ -1,4 +1,4 @@
-use crate::xlsx2data::domain::prop_name::PropName;
+use crate::parse_xlsx::domain::prop_name::PropName;
 
 #[derive(Clone)]
 pub struct RawData {

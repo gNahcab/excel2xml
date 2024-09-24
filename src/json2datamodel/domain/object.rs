@@ -1,5 +1,5 @@
-use crate::transfrom2datamodel::domain::object::Object::{BooleanValue, DateValue, GeonameValue, IntValue, LinkValue, ListValue, TextValue, TimeValue, UriValue};
-use crate::transfrom2datamodel::errors::DataModelError;
+use crate::json2datamodel::domain::object::Object::{BooleanValue, DateValue, GeonameValue, IntValue, LinkValue, ListValue, TextValue, TimeValue, UriValue};
+use crate::json2datamodel::errors::DataModelError;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Object {
     ListValue,

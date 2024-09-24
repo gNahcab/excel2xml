@@ -1,45 +1,165 @@
-use std::collections::HashMap;
-use hcl::{Body, Identifier};
+use std::collections::{HashMap};
+use hcl::{Body, Expression};
+use crate::parse_info::domain::command::{ParseInfoCommandWrapper};
+use crate::parse_info::domain::command_path::CommandOrPath;
+use crate::parse_info::domain::xlsx_workbook::{XLSXWorbook, XLSXWorkbookWrapper};
 use crate::parse_info::errors::HCLDataError;
-use crate::parse_info::errors::HCLDataError::InputError;
-use crate::parse_info::position::Position;
-use crate::parse_xlsx::errors::ExcelDataError::ParsingError;
 
 pub struct ParseInformation {
-    xlsx_paths_to_read: Vec<String>,
-    path_json_to_datamodel: String,
-    xlsx_which_sheet_nr: HashMap<String, usize>,
-    xlsx_which_assignments: HashMap<String, HashMap<Position, String>>
+    shortcode: String,
+    rel_path_to_xlsx_workbooks:HashMap<String, XLSXWorbook>,
+    res_folder: String,
+    separator: String,
+    dm_path: CommandOrPath,
 }
-impl TryFrom<hcl::Body> for ParseInformation {
-    type Error = HCLDataError;
-    fn try_from(body: Body) -> Result<Self, Self::Error> {
-        let mut transient_transform_hcl = TransientTransformHCL::new();
-        let attributes: Vec<&hcl::Attribute> = body.attributes().collect();
-        for attribute in attributes.iter() {
-            match attribute.key.as_str() {
-                "shortcode" => {}
-                "resources_folder" => {}
-                "separator" => {}
-                "datamodel" => {}
-                "xlsx" => {}
-                _ => {
-                    return Err(InputError(""))
-                }
-            }
 
+impl ParseInformation {
+    fn new(transient_parse_information: TransientParseInformation) -> Self {
+        ParseInformation{
+            shortcode: transient_parse_information.shortcode.unwrap(),
+            rel_path_to_xlsx_workbooks: transient_parse_information.xlsx_workbooks,
+            res_folder: transient_parse_information.res_folder.unwrap(),
+            separator: transient_parse_information.separator.unwrap(),
+            dm_path: transient_parse_information.dm_path.unwrap(),
         }
-        todo!()
     }
 }
 
-struct TransientTransformHCL {
-
+impl TryFrom<hcl::Body> for ParseInformation {
+    type Error = HCLDataError;
+    fn try_from(body: Body) -> Result<Self, Self::Error> {
+        let mut transient_parse_info = TransientParseInformation::new();
+        let attributes: Vec<&hcl::Attribute> = body.attributes().collect();
+        let blocks: Vec<&hcl::Block> = body.blocks().collect();
+        for attribute in attributes.iter() {
+            match attribute.key.as_str() {
+                "shortcode" => {
+                    match attribute.expr.to_owned() {
+                        Expression::Number(number) => {
+                            let shortcode = number.to_string();
+                            transient_parse_info.add_shortcode(shortcode)?;
+                        }
+                        _ => {
+                            return Err(HCLDataError::InputError(format!("parse-info-hcl: shortcode is not a Expression::Number: '{}'", attribute.expr)));
+                        }
+                    }
+                }
+                "resources_folder" => {
+                    match attribute.expr.to_owned() {
+                        Expression::String(res_folder) => {
+                            transient_parse_info.add_res_folder(res_folder)?;
+                        }
+                        _ => {
+                            return Err(HCLDataError::InputError(format!("parse-info-hcl: \
+                            resources_folder is not a Expression::String: '{}'", attribute.expr)));
+                        }
+                    }
+                }
+                "separator" => {
+                    match attribute.expr.to_owned() {
+                        Expression::String(separator) => {
+                            transient_parse_info.add_separator(separator)?;
+                        }
+                        _ => {
+                            return Err(HCLDataError::InputError(format!("parse-info-hcl: \
+                            separator is not a Expression::String: '{}'", attribute.expr)));
+                        }
+                    }
+                }
+                "datamodel" => {
+                    let command_or_path = match attribute.expr.to_owned() {
+                        Expression::String(path) => {
+                            CommandOrPath::new_path(path)
+                        }
+                        Expression::Traversal(traversal) => {
+                            let command = ParseInfoCommandWrapper(traversal).to_command()?;
+                            CommandOrPath::new_command(command)
+                        }
+                        _ => {
+                            return Err(HCLDataError::InputError(format!("value of 'datamodel' must be a path of Expression::String or a command of Expression::Traversal, but found: '{:?}'", attribute.expr)));
+                        }
+                    };
+                    transient_parse_info.add_command_or_path(command_or_path)?
+                }
+                _ => {
+                    return Err(HCLDataError::InputError(format!("unknown identifier in parse-info-hcl: {}", attribute.key)))
+                }
+            }
+        }
+        for block in blocks.iter() {
+            match block.identifier.as_str() {
+                "xlsx" => {
+                    let xlsx_workbook: XLSXWorbook = XLSXWorkbookWrapper {0: block.to_owned().to_owned()}.to_xlsx_workbook()?;
+                    transient_parse_info.add_xlsx_workbook(xlsx_workbook)?;
+                }
+                _ => {
+                    return Err(HCLDataError::InputError(format!("unknown identifier in parse-info-hcl: {}", block.identifier))) }
+            }
+        }
+        transient_parse_info.complete()?;
+        Ok(ParseInformation::new(transient_parse_info))
+    }
 }
 
-impl TransientTransformHCL {
+struct TransientParseInformation {
+    shortcode: Option<String>,
+    xlsx_workbooks: HashMap<String, XLSXWorbook>,
+    res_folder: Option<String>,
+    separator: Option<String>,
+    dm_path: Option<CommandOrPath>,
+}
+impl TransientParseInformation {
     fn new() -> Self {
-        TransientTransformHCL{}
+        TransientParseInformation { shortcode: None, xlsx_workbooks: Default::default(), res_folder: None, separator: None, dm_path: None}
+    }
+    pub(crate) fn add_shortcode(&mut self, shortcode: String) -> Result<(), HCLDataError> {
+        if self.shortcode.is_some() {
+            return Err(HCLDataError::InputError("parse-info-hcl: shortcode has a duplicate.".to_string()));
+        }
+        self.shortcode = Option::Some(shortcode);
+        Ok(())
+    }
+    pub(crate) fn add_res_folder(&mut self, res_folder: String) -> Result<(), HCLDataError> {
+        if self.res_folder.is_some() {
+            return Err(HCLDataError::InputError(format!("res_folder with value '{}' has a duplicate.", res_folder)));
+        }
+        self.res_folder = Option::Some(res_folder);
+        Ok(())
+    }
+    pub(crate) fn add_separator(&mut self, separator: String) -> Result<(), HCLDataError> {
+        if self.separator.is_some() {
+            return Err(HCLDataError::InputError("parse-info-hcl: separator has a duplicate.".to_string()));
+        }
+        self.separator = Option::Some(separator);
+        Ok(())
+    }
+    pub(crate) fn add_command_or_path(&mut self, command_or_path: CommandOrPath) -> Result<(), HCLDataError> {
+        if self.dm_path.is_some()  {
+                    return Err(HCLDataError::InputError("parse-info-hcl: datamodel-path has a duplicate.".to_string()));
+                }
+        self.dm_path = Option::Some(command_or_path);
+        Ok(())
+    }
+    pub(crate) fn add_xlsx_workbook(&mut self, xlsx_workbook: XLSXWorbook) -> Result<(), HCLDataError> {
+        if self.xlsx_workbooks.contains_key(xlsx_workbook.rel_path.as_str()) {
+            return Err(HCLDataError::InputError(format!("parse-info-hcl in files: found duplicate with same relative path for different xlsx-workbooks: {}", xlsx_workbook.rel_path)));
+        }
+        self.xlsx_workbooks.insert(xlsx_workbook.rel_path.to_owned(), xlsx_workbook);
+        Ok(())
+    }
+    pub(crate) fn complete(&self) -> Result<(), HCLDataError> {
+        if self.shortcode.is_none() {
+            return Err(HCLDataError::InputError("'shortcode' not found.".to_string())) }
+        if self.res_folder.is_none() {
+            return Err(HCLDataError::InputError("'resource' folder not found.".to_string()))
+        }
+        if self.separator.is_none() {
+            return Err(HCLDataError::InputError("'separator' not found.".to_string()))
+        }
+        if self.dm_path.is_none() {
+            return Err(HCLDataError::InputError("'dm_path' not found.".to_string()))
+        }
+        Ok(())
     }
 
 }

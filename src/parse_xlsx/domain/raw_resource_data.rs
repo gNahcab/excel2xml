@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use calamine::Data;
-use crate::xlsx2data::domain::prop_name::PropName;
-use crate::xlsx2data::domain::raw_data::RawData;
+use crate::parse_xlsx::domain::prop_name::PropName;
+use crate::parse_xlsx::domain::raw_data::RawData;
 
 #[derive(Clone)]
 pub struct RawResourceData {
