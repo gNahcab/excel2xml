@@ -19,4 +19,5 @@ pub trait Builder {
     fn is_complete(&self) -> Result<(), DataModelError>;
 
     fn build(self) -> DataModel;
+    fn add_shortcode(&mut self, shortcode: String);
 }

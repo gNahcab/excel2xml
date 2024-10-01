@@ -1,16 +1,48 @@
 use std::collections::{HashMap};
+use std::num::ParseIntError;
 use hcl::{Body, Expression};
+use crate::json2datamodel::domain::data_model::DataModel;
+use crate::json2datamodel::domain::resource::DMResource;
 use crate::parse_info::domain::command::{ParseInfoCommandWrapper};
 use crate::parse_info::domain::command_path::CommandOrPath;
 use crate::parse_info::domain::xlsx_workbook::{XLSXWorbook, XLSXWorkbookWrapper};
 use crate::parse_info::errors::HCLDataError;
+use crate::special_propnames::SpecialPropnames;
 
 pub struct ParseInformation {
-    shortcode: String,
-    rel_path_to_xlsx_workbooks:HashMap<String, XLSXWorbook>,
-    res_folder: String,
-    separator: String,
-    dm_path: CommandOrPath,
+    pub shortcode: String,
+    pub rel_path_to_xlsx_workbooks:HashMap<String, XLSXWorbook>,
+    pub res_folder: String,
+    pub separator: String,
+    pub dm_path: CommandOrPath,
+}
+
+impl ParseInformation {
+    pub(crate) fn correct_parse_info(&self, data_model: &DataModel, special_propnames: SpecialPropnames) -> Result<(), HCLDataError> {
+        if self.shortcode != data_model.shortcode {
+            return Err(HCLDataError::ParsingError(format!("Shortcode of Parse-Info and Datamodel don't match. Parse-info: {}, Datamodel: {}", self.shortcode, data_model.shortcode)));
+        }
+
+        for (_, xlsx_workbook) in self.rel_path_to_xlsx_workbooks.iter() {
+            let dm_resources: Vec<&DMResource> = data_model.resources.iter().collect();
+            let names: Vec<&String> = dm_resources.iter().map(|resource|&resource.name).collect();
+            for (_ ,sheet_info) in xlsx_workbook.sheet_infos.iter() {
+                if !names.contains(&&sheet_info.resource_name) {
+                    return Err(HCLDataError::ParsingError(format!("cannot find resource-name '{}' in name of resources of datamodel: '{:?}'.",sheet_info.resource_name, names)));
+                }
+                let specific_dm_resource: &&&DMResource = dm_resources.iter().filter(|dmresource| dmresource.name == sheet_info.resource_name).collect::<Vec<&&DMResource>>().get(0).unwrap();
+
+                let prop_names: Vec<String> = sheet_info.assignments.header_to_propname.iter().map(|(header, propname)| propname.to_lowercase()).collect();
+                // 0. filter special propnames
+                let prop_names: Vec<&String> = prop_names.iter().filter(|prop_name| !(special_propnames.resource_header.contains(prop_name) && special_propnames.bitstream.contains(prop_name) && special_propnames.properties.contains(prop_name))).collect();
+                // 1. prop-names are part of properties
+
+
+                // 2. prop_names should be part of the specific DMResource
+            }
+        }
+        Ok(())
+    }
 }
 
 impl ParseInformation {
@@ -35,8 +67,15 @@ impl TryFrom<hcl::Body> for ParseInformation {
             match attribute.key.as_str() {
                 "shortcode" => {
                     match attribute.expr.to_owned() {
-                        Expression::Number(number) => {
-                            let shortcode = number.to_string();
+                        Expression::String(shortcode) => {
+                            match shortcode.parse::<i32>(){
+                                Err(err) => {
+                                    HCLDataError::InputError(format!("cannot parse shortcode '{}' to usize", shortcode));
+                                }
+                                Ok(_) => {
+                                    // do nothing
+                                }
+                            }
                             transient_parse_info.add_shortcode(shortcode)?;
                         }
                         _ => {

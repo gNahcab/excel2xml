@@ -1,5 +1,5 @@
 use std::num::ParseIntError;
-use hcl::BlockLabel;
+use hcl::{BlockLabel, Expression};
 use crate::parse_info::domain::assignments::{Assignments, AssignmentsWrapper};
 use crate::parse_info::errors::HCLDataError;
 use crate::parse_info::wrapper_trait::Wrapper;
@@ -67,8 +67,13 @@ impl SheetInfoWrapper {
         for attribute in self.0.attributes() {
             match attribute.key.as_str() {
                 "resource" => {
-                    let resource_name = attribute.expr.to_string();
-                    transient_sheet_info.add_res_name(resource_name)?;
+                    let resource_name = match &attribute.expr {
+                        Expression::String(value) => {value}
+                        _ => {
+                            return Err(HCLDataError::InputError(format!("Value of 'resource' should be a String, but found something else: {:?}", attribute.expr)));
+                        }
+                    };
+                    transient_sheet_info.add_res_name(resource_name.to_owned())?;
                 }
                 _ => {
                     return Err(HCLDataError::InputError(format!("found unknown attribute-key '{}' in sheet-info.", attribute.key.as_str())));

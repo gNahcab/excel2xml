@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use crate::errors::Excel2XmlError;
 use crate::json2datamodel::domain::data_model::DataModel;
 use crate::json2datamodel::domain::dasch_list::DaSCHList;
 use crate::json2datamodel::domain::ontology::Ontology;
@@ -11,6 +10,7 @@ pub struct DataModelBuilder {
     pub ontologies: Vec<Ontology>,
     pub properties: Vec<Property>,
     pub resources: Vec<DMResource>,
+    pub shortcode: Option<String>,
     pub lists: HashMap<String, DaSCHList>,
 }
 
@@ -23,10 +23,10 @@ impl Builder for DataModelBuilder {
             ontologies: vec![],
             properties: vec![],
             resources: vec![],
+            shortcode: Option::None,
             lists: HashMap::new(),
         }
     }
-
     fn add_to_ontology(&mut self, ontology: Ontology) {
         self.ontologies.push(ontology);
     }
@@ -61,7 +61,12 @@ impl Builder for DataModelBuilder {
             ontologies: self.ontologies,
             properties: self.properties,
             resources: self.resources,
+            shortcode: self.shortcode.unwrap(),
             lists: self.lists,
         }
+    }
+
+    fn add_shortcode(&mut self, shortcode: String) {
+        self.shortcode = Option::Some(shortcode);
     }
 }

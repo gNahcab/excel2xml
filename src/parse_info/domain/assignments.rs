@@ -6,7 +6,7 @@ use crate::parse_info::wrapper_trait::Wrapper;
 use crate::parse_xlsx::domain::data_sheet::DataSheetWrapper;
 
 pub struct Assignments {
-    header_to_propname: HashMap<String, String>,
+    pub header_to_propname: HashMap<String, String>,
     find_rest: bool
 }
 

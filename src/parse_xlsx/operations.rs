@@ -8,8 +8,7 @@ use crate::parse_xlsx::domain::data_sheet::{DataSheet, DataSheetWrapper};
 use crate::parse_xlsx::errors::ExcelDataError;
 use crate::read_xlsx::worksheet::Worksheet;
 
-fn to_worksheets(xlsx_sheets: Vec<(String, Range<Data>)>, data_model: &DataModel, xlsx_path: &str) -> Result<Vec<Worksheet>, Excel2XmlError> {
-    //todo!(use info from hcl-file: which files can be completely ignored, which ones not: separate worksheets : which sheets should be parsed, which can be ignored)
+fn to_worksheets(xlsx_sheets: Vec<(String, Range<Data>)>, data_model: &DataModel, xlsx_path: &str, parse_information: &ParseInformation) -> Result<Vec<Worksheet>, Excel2XmlError> {
     let mut worksheets: Vec<Worksheet> = vec![];
     // we already know that worksheets.len() cannot be 0 here, we checked that before
     if xlsx_sheets.len() == 1 {
@@ -40,7 +39,8 @@ fn to_datasheets(worksheets: Vec<Worksheet>) -> Result<Vec<DataSheet>, ExcelData
 }
 pub fn process_worksheets_to_datasheets(xlsx_sheets: Vec<(String, Range<Data>)>, data_model: DataModel, xlsx_path: &str, parse_info:ParseInformation) -> Result<(), Excel2XmlError> {
     // first get res_name to table as worksheet
-    let worksheets = to_worksheets(xlsx_sheets, &data_model, xlsx_path)?;
+    let worksheets = to_worksheets(xlsx_sheets, &data_model, xlsx_path, &parse_info)?;
+    // datasheets
     let datasheets = to_datasheets(worksheets)?;
     Ok(())
 

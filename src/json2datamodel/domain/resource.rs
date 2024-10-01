@@ -78,29 +78,50 @@ impl ResourceWrapper{
         for (key, value) in resource_raw.iter(){
             match key.as_str() {
                 "name" => {
-                    let name = value.as_str().expect("name should be a string").to_string();
-                    transient_resource.add_name(name)
+                    let name = match value {
+                        Value::String(name) => {name}
+                        _ => {
+                            return Err(DataModelError::ParsingError(format!("name '{:?}' of resource is not a String.", value)));
+                        }
+                    };
+                    transient_resource.add_name(name.to_owned());
                 }
                 "labels" => {
-                    let labels_raw = value.as_object().expect("labels should be an object");
-
+                    let labels_raw = match value {
+                        Value::Object(labels) => {labels}
+                        _ => {
+                            return Err(DataModelError::ParsingError(format!("labels '{:?}' of resource with name '{:?}' is not an Object.", value, transient_resource.name)));
+                        }
+                    };
                     for (key, value) in labels_raw.iter() {
                         let label = LabelWrapper((key.to_owned(), value.to_owned())).to_label()?;
                         transient_resource.add_label(label);
                     }
                 }
                 "super" => {
-                    let super_ = value.as_str().expect("super should be a string").to_string();
-                    transient_resource.add_super(super_);
+                    let super_ = match value {
+                        Value::String(super_) => {super_}
+                        _ => {
+                            return Err(DataModelError::ParsingError(format!("super '{:?}' of resource with name '{:?}' is not a String.", value, transient_resource.name)));
+                        }
+                    };
+                    transient_resource.add_super(super_.to_owned());
                 }
                 "cardinalities" => {
-                    let res_props_raw = value.as_array().expect("cardinalities should be an array");
+                    let res_props_raw = match value {
+                        Value::Array(res_props_raw) => {res_props_raw}
+                        _ => {
+                            return Err(DataModelError::ParsingError(format!("cardinalities '{:?}' of resource with name '{:?}' is not a String.", value, transient_resource.name)));
+                        }
+                    };
                     for res_prop_raw in res_props_raw.iter() {
                         let res_prop = ResPropertyWrapper(res_prop_raw.to_owned()).to_res_prop()?;
                         transient_resource.add_res_prop(res_prop);
                     }
                 }
-                _ => {}
+                _ => {
+
+                }
             }
         }
         transient_resource.is_complete()?;

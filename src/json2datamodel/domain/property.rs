@@ -94,28 +94,47 @@ impl PropertyWrapper {
         for (key, value) in prop_obj.iter() {
             match key.as_str() {
                 "name"=> {
-                    let name = value.as_str().expect("name of property value must be a string");
+                    let name = match value {
+                        Value::String(name) => {name}
+                        _ => {
+                            return Err(DataModelError::ParsingError(format!("name of property '{:?}' is not a String.", value)));
+                        }
+                    };
                     transient_property.add_name(name.to_string());
                 }
                 "object"=>{
-                    let object_raw = value.as_str().expect("property of object must be a string");
-                    let object = ObjectWrapper(object_raw.to_string()).to_object(onto_name.to_owned())?;
-
+                    let object = match value {
+                        Value::String(object) => {object}
+                        _ => {
+                            return Err(DataModelError::ParsingError(format!("object '{:?}' of property with name '{:?}' is not a String.", value, transient_property.name)));
+                        }
+                    };
+                    let object = ObjectWrapper(object.to_owned()).to_object(onto_name.to_owned())?;
                     transient_property.add_object(object);
                 }
                 "gui_element"=> {
-                    let gui_element = value.as_str().expect("gui_element must be a string");
+                    let gui_element = match value {
+                        Value::String(gui_element) => {gui_element}
+                        _ => {
+                            return Err(DataModelError::ParsingError(format!("gui_element '{:?}' of property with name '{:?}' is not a String.", value, transient_property.name)));
+                        }
+                    };
                     transient_property.add_gui_element(gui_element.to_string());
                 }
                 "gui_attributes" => {
                     // if hlist exists, else not interesting
-                    let gui_attributes = value.as_object().expect("gui_attributes must be an object");
+                    let gui_attributes = match value {
+                        Value::Object(gui_attributes) => {gui_attributes}
+                        _ => {
+                            return Err(DataModelError::ParsingError(format!("gui_attributes '{:?}' of property with name '{:?}' is not an Object.", value, transient_property.name)));
+                        }
+                    };
                     let hlist_name = gui_attributes.get("hlist");
                     if hlist_name.is_some() {
                         transient_property.add_hlist(hlist_name.unwrap().as_str().unwrap().to_string());
                     }
                 }
-                &_ => {
+                _ => {
                     // else continue
                 } }
 

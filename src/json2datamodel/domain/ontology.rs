@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fs::read_to_string;
 use serde_json::{Map, Value};
 use crate::json2datamodel::domain::dasch_list::DaSCHList;
 use crate::json2datamodel::domain::label::LabelWrapper;
@@ -61,8 +62,11 @@ pub fn separate_ontology_properties_resources(onto_object: Map<String, Value>) -
 
         match key.as_str() {
             "label" => {
-                let label = value.to_string();
-                transient_ontology.add_label(label);
+                let label = match value {
+                    Value::String(label) => {label}
+                    _ => {return Err(DataModelError::ParsingError(format!("label of ontology should be a string but found something else for: {}.", value)))}
+                };
+                transient_ontology.add_label(label.to_owned());
             }
             "properties" => {
                 let array = value.as_array().expect("properties of ontology must be an array");

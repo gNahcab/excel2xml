@@ -22,7 +22,6 @@ impl DataSheetWrapper {
         if self.0.table.is_empty() {
             return Err(ExcelDataError::InputError("table cannot be empty".to_string()));
         }
-
         for row in self.0.table.rows() {
             let data_row: DataRow = DataRowWrapper(row.to_owned()).to_data_row();
             data_sheet.add_row(data_row);
