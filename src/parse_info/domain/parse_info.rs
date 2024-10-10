@@ -18,7 +18,7 @@ pub struct ParseInformation {
 }
 
 impl ParseInformation {
-    pub(crate) fn correct_parse_info(&self, data_model: &DataModel, special_propnames: SpecialPropnames) -> Result<(), HCLDataError> {
+    pub(crate) fn correct_parse_info(&self, data_model: &DataModel, special_propnames: &SpecialPropnames) -> Result<(), HCLDataError> {
         if self.shortcode != data_model.shortcode {
             return Err(HCLDataError::ParsingError(format!("Shortcode of Parse-Info and Datamodel don't match. Parse-info: {}, Datamodel: {}", self.shortcode, data_model.shortcode)));
         }

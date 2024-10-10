@@ -1,13 +1,14 @@
 use calamine::Data;
 
+#[derive(Clone, Debug)]
 pub struct DataRow {
-    rows: Vec<String>
+    pub rows: Vec<String>
 }
 impl DataRow {
-    fn new() -> DataRow {
+    pub fn new() -> DataRow {
         DataRow{ rows: vec![] }
     }
-    fn add_data(&mut self, data: String) {
+    pub fn add_data(&mut self, data: String) {
         self.rows.push(data);
     }
 }

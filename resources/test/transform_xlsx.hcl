@@ -4,7 +4,7 @@
 // separator
 shortcode = "0828"
 resources_folder = "testdata/"
-separator = "$£P"
+separator = "£"
 datamodel = cmd.find
 xlsx "CSVDocument.xlsx" {
   sheet "1" {

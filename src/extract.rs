@@ -9,6 +9,6 @@ impl Extract for String {
             }
             Some(pos) => { pos }
         };
-        self[pos..].to_string()
+        self[pos + 1..].to_string()
     }
 }

@@ -6,7 +6,7 @@ use crate::json2datamodel::errors::DataModelError;
 pub struct DaSCHList {
     pub name: String,
     labels: Vec<Label>,
-    nodes: Vec<ListNode>,
+    pub nodes: Vec<ListNode>,
 }
 
 impl DaSCHList {
@@ -17,9 +17,9 @@ impl DaSCHList {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ListNode {
-    name: String,
+    pub name: String,
     labels: Vec<Label>,
-    nodes: Vec<ListNode>
+    pub nodes: Vec<ListNode>
 }
 
 impl ListNode {

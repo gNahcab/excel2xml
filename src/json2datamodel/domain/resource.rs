@@ -8,8 +8,8 @@ use crate::json2datamodel::errors::DataModelError;
 pub struct DMResource {
     pub(crate) name: String,
     labels: Vec<Label>,
-    super_: String,
-    pub(crate) properties: Vec<ResProperty>
+    pub super_field: String,
+    pub(crate) properties: Vec<ResProperty>,
 }
 
 impl DMResource {
@@ -17,7 +17,7 @@ impl DMResource {
         DMResource{
             name: transient_resource.name.unwrap(),
             labels: transient_resource.labels,
-            super_: transient_resource.super_.unwrap(),
+            super_field: transient_resource.super_.unwrap(),
             properties: transient_resource.res_props,
         }
     }

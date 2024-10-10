@@ -1,9 +1,8 @@
 use std::collections::HashMap;
-use hcl::{Attribute, Expression, Identifier};
+use hcl::Expression;
 use crate::parse_info::domain::command::{ParseInfoCommand, ParseInfoCommandWrapper};
 use crate::parse_info::errors::HCLDataError;
 use crate::parse_info::wrapper_trait::Wrapper;
-use crate::parse_xlsx::domain::data_sheet::DataSheetWrapper;
 
 pub struct Assignments {
     pub header_to_propname: HashMap<String, String>,

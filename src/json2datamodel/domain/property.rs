@@ -1,7 +1,7 @@
 use std::cmp::PartialEq;
 use serde_json::Value;
 use crate::json2datamodel::domain::label::Label;
-use crate::json2datamodel::domain::object::{Object, ObjectWrapper};
+use crate::json2datamodel::domain::object::{ValueObject, ObjectWrapper};
 use crate::json2datamodel::errors::DataModelError;
 use crate::json2datamodel::errors::DataModelError::ParsingError;
 
@@ -9,10 +9,10 @@ use crate::json2datamodel::errors::DataModelError::ParsingError;
 pub struct Property {
     pub(crate) name: String,
     ontology_name: String,
-    object: Object,
+    pub object: ValueObject,
     labels: Vec<Label>,
     gui_element: String,
-    h_list: Option<String>
+    pub h_list: Option<String>
 }
 
 impl Property {
@@ -31,7 +31,7 @@ impl Property {
 pub struct TransientProperty {
     name: Option<String>,
     ontology_name: Option<String>,
-    object: Option<Object>,
+    object: Option<ValueObject>,
     labels: Vec<Label>,
     gui_element: Option<String>,
     hlist: Option<String>,
@@ -48,22 +48,22 @@ impl TransientProperty {
             hlist: None,
         }
     }
-    pub(crate) fn add_name(&mut self, name: String) {
+    fn add_name(&mut self, name: String) {
         self.name = Some(name);
     }
-    pub(crate) fn add_object(&mut self, object: Object) {
+    fn add_object(&mut self, object: ValueObject) {
         self.object = Some(object);
     }
-    pub(crate) fn add_gui_element(&mut self, gui_element: String) {
+    fn add_gui_element(&mut self, gui_element: String) {
         self.gui_element = Some(gui_element);
     }
-    pub(crate) fn add_hlist(&mut self, hlist: String) {
+    fn add_hlist(&mut self, hlist: String) {
             self.hlist = Some(hlist);
         }
-    pub(crate) fn add_onto_name(&mut self, onto_name: String) {
+    fn add_onto_name(&mut self, onto_name: String) {
         self.ontology_name = Option::from(onto_name);
     }
-    pub(crate) fn is_complete(&self) -> Result<(), DataModelError> {
+    fn is_complete(&self) -> Result<(), DataModelError> {
         // it is complete if a name, an object and a gui_element exist
         if self.name.is_none() {
             return Err(DataModelError::ParsingError(format!("name is missing for property with labels: {:?}", self.labels)))
@@ -77,7 +77,7 @@ impl TransientProperty {
         }
         // special cases:
         //1 object is a ListValue: condition: a hlist must exist as well
-        if self.object.as_ref().unwrap() == &Object::ListValue && self.hlist.is_none() {
+        if self.object.as_ref().unwrap() == &ValueObject::ListValue && self.hlist.is_none() {
             return Err(ParsingError(format!("hlist is missing for ListValue with name: {:?}", self.name)))
         }
         Ok(())

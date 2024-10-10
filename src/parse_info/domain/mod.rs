@@ -1,6 +1,6 @@
 pub mod parse_info;
 mod xlsx_workbook;
 mod xlsx_sheet_info;
-mod assignments;
+pub(crate) mod assignments;
 mod command;
 mod command_path;

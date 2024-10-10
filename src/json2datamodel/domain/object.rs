@@ -1,22 +1,25 @@
-use crate::json2datamodel::domain::object::Object::{BooleanValue, DateValue, GeonameValue, IntValue, LinkValue, ListValue, TextValue, TimeValue, UriValue};
+use crate::json2datamodel::domain::object::ValueObject::{BooleanValue, DateValue, GeonameValue, IntValue, ResLinkValue, ListValue, TextValue, TimeValue, UriValue, Representation, ColorValue, DecimalValue};
 use crate::json2datamodel::errors::DataModelError;
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Object {
+pub enum ValueObject {
     ListValue,
     TextValue,
     DateValue,
     UriValue,
     GeonameValue,
+    DecimalValue,
+    ColorValue,
     IntValue,
     BooleanValue,
     TimeValue,
-    LinkValue(LinkElement),
+    Representation,
+    ResLinkValue(LinkElement),
 }
 
 pub struct ObjectWrapper (pub(crate) String);
 
 impl ObjectWrapper {
-    pub(crate) fn to_object(&self, onto_name: String) -> Result<Object, DataModelError> {
+    pub(crate) fn to_object(&self, onto_name: String) -> Result<ValueObject, DataModelError> {
         match self.0.as_str() {
             "TextValue"  => {
                 Ok(TextValue)
@@ -42,10 +45,19 @@ impl ObjectWrapper {
             "UriValue"  => {
                 Ok(UriValue)
             }
+            "ColorValue"  => {
+                Ok(ColorValue)
+            }
+            "DecimalValue"  => {
+                Ok(DecimalValue)
+            }
+            "Representation" => {
+                Ok(Representation)
+            }
             _ => {
                 if self.0.contains(":") {
                     let link_element = LinkValueWrapper(self.0.to_string()).to_link_value(onto_name.to_owned())?;
-                     Ok(LinkValue(link_element))
+                     Ok(ResLinkValue(link_element))
 
                 } else {
                     Err(DataModelError::ParsingError(format!("this object-value: '{}' is unexpected. Either it is incorrect or not supported yet.", self.0)))
