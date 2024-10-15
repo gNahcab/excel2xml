@@ -9,4 +9,5 @@ serde_json = "1.0.127"
 calamine = "0.25.0" # excel
 hcl-rs = "0.18.0" # HCL parser
 rust_decimal = "1.36.0"
+dotenv = "0.15.0"
 regex = "1.11.0"

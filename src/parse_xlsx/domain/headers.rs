@@ -15,10 +15,10 @@ impl Headers {
     }
 }
 
-pub fn to_headers(raw_headers: &DataRow, properties: &Vec<Property>) -> Result<Headers, ExcelDataError> {
+pub fn to_headers(raw_headers: &Vec<String>, properties: &Vec<Property>) -> Result<Headers, ExcelDataError> {
     let mut pos_to_headers: HashMap<usize, Header> = HashMap::new();
     let mut pos_to_propname: HashMap<usize, String> = HashMap::new();
-    for (pos, raw_header) in raw_headers.rows.iter().enumerate() {
+    for (pos, raw_header) in raw_headers.iter().enumerate() {
         let header = match HeaderWrapper(raw_header.to_owned()).to_header(&properties) {
             Ok(header) => {header}
             Err(_) => {

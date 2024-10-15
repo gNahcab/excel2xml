@@ -1,3 +1,4 @@
+use std::cmp::PartialEq;
 use std::collections::{HashMap, HashSet};
 use std::vec;
 use crate::json2datamodel::domain::data_model::DataModel;
@@ -121,9 +122,10 @@ pub fn data_sheets(sheets: Vec<IntermediateSheet>, parse_info: &ParseInformation
     Ok(data_sheets)
 }
 
-pub fn compare_header_to_data_model(data_sheet: &DataSheet, data_model: &DataModel,headers: &Vec<&Header>) -> Result<(), ExcelDataError> {
-    let resource = match data_model.resources.iter().find(|resource| resource.name == data_sheet.res_name) {
-        None => { return Err(ExcelDataError::ParsingError(format!("not found resource with name '{}' in data-model", data_sheet.res_name))) }
+
+pub fn compare_header_to_data_model(res_name: &String, data_model: &DataModel, headers: &Vec<&Header>) -> Result<(), ExcelDataError> {
+    let resource = match data_model.resources.iter().find(|resource| resource.name.eq(res_name)) {
+        None => { return Err(ExcelDataError::ParsingError(format!("not found resource with name '{}' in data-model", res_name))) }
         Some(dm_resource) => { dm_resource }
     };
     let mut missing_propnames: HashSet<String> = resource.properties

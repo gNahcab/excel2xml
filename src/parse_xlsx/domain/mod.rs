@@ -7,3 +7,6 @@ mod data_row;
 pub(crate) mod data_sheet;
 mod dasch_value;
 mod headers;
+pub(crate) mod data_header;
+pub mod data_container;
+mod subheader;

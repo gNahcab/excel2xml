@@ -3,6 +3,7 @@ use crate::json2datamodel::domain::data_model::DataModel;
 use crate::json2datamodel::domain::property::Property;
 use crate::json2datamodel::domain::resource::DMResource;
 use crate::parse_xlsx::domain::dasch_value::{ValueField, DaSCHValueWrapper};
+use crate::parse_xlsx::domain::data_header::DataHeader;
 use crate::parse_xlsx::domain::data_row::DataRow;
 use crate::parse_xlsx::domain::data_sheet::{compare_header_to_data_model, DataSheet};
 use crate::parse_xlsx::domain::permissions::Permissions;
@@ -20,44 +21,8 @@ pub struct DataResource {
 pub struct DataResourceWrapper(pub(crate) DataRow);
 
 impl DataResourceWrapper {
-    pub(crate) fn to_data_resource(&self, data_model: &DataModel, separator: &String, res_name: &String, headers: &Headers) -> Result<DataResource, ExcelDataError> {
-        properties_of_resource_exist(headers, data_model, res_name)?;
-        let mut transient_data_resource = TransientDataResource::new();
-        for (pos, header) in headers.pos_to_headers.iter() {
-            match header {
-                Header::ID => {
-                    let id = &self.0.rows[pos.to_owned()];
-                    transient_data_resource.add_id(id.to_owned(), pos)?
-                }
-                Header::Label => {
-                    let label = &self.0.rows[pos.to_owned()];
-                    transient_data_resource.add_label(label.to_owned(), pos)?
-                }
-                Header::ARK => {
-                    let ark = &self.0.rows[pos.to_owned()];
-                    transient_data_resource.add_ark(ark.to_owned(), pos)?
-                }
-                Header::IRI => {
-                    let iri = &self.0.rows[pos.to_owned()];
-                    transient_data_resource.add_iri(iri.to_owned(), pos)?
-                }
-                Header::Bitstream => {
-                    let bitstream = &self.0.rows[pos.to_owned()];
-                    transient_data_resource.add_bitstream(bitstream.to_owned(), pos)?
-                }
-                Header::ProjectProp(prop_header) => {
-                    let field = &self.0.rows[pos.to_owned()];
-                    let splitted_field = split_field(field, separator);
-                    let mut values: ValueField = DaSCHValueWrapper(splitted_field).to_dasch_value(data_model, prop_header)?;
-                    transient_data_resource.add_values_of_prop(prop_header.to_owned(), values, pos)?;
-
-                }
-                _ => {
-                    // permissions, comment, encoding: cannot be processed here; we deal with them after matching all other headers
-                }
-            }
-        }
-        transient_data_resource.add_permissions_comment_encoding()?;
+    pub(crate) fn to_data_resource(&self, data_model: &DataModel, separator: &String, res_name: &String, headers: &DataHeader) -> Result<DataResource, ExcelDataError> {
+        //properties_of_resource_exist(headers, data_model, res_name)?;
         todo!()
     }
 }
@@ -108,6 +73,7 @@ struct TransientDataResource {
     propname_to_pos: HashMap<String, usize>,
     bitstream: Option<(usize, String)>,
 }
+
 
 impl TransientDataResource {
     fn new() -> Self {
@@ -168,7 +134,8 @@ impl TransientDataResource {
         if self.propname_to_values.contains_key(&prop_name) {
             return Err(ExcelDataError::InputError( format!("Duplicate prop_name found: {}", prop_name) ))
         }
-        self.propname_to_values.insert(prop_name, project_values);
+        self.propname_to_values.insert(prop_name.to_owned(), project_values);
+        self.propname_to_pos.insert(prop_name, pos.to_owned());
         Ok(())
     }
     pub(crate) fn properties_correct(&self, data_model: &DataModel, res_name: String) -> Result<(), ExcelDataError> {
@@ -195,9 +162,53 @@ impl TransientDataResource {
         }
         Ok(())
     }
-    pub(crate) fn add_permissions_comment_encoding(&self) -> Result<(), ExcelDataError> {
+    pub(crate) fn positions_correct(&self) -> Result<(), ExcelDataError> {
+        // check that id, label, iri, ark are positioned at the beginning and all properties after
+        let mut positions: Vec<usize>  = vec![&self.label, &self.id, &self.iri, &self.ark]
+            .iter()
+            .filter(|res_header|res_header.is_some())
+            .map(|res_header|res_header.as_ref().unwrap().0)
+            .collect();
+        positions.sort();
+
+        let positions_propnames: Vec<&usize> = self.propname_to_pos.iter().map(|(_, pos)|pos).collect();
+
+        if positions.last().unwrap() > positions_propnames.first().unwrap() {
+
+            return Err(ExcelDataError::ParsingError(format!("First header of propnames '{}' is before last header of resource '{}' (id, label, ark, iri)", positions_propnames.first().unwrap(), positions.last().unwrap())));
+        }
+        Ok(())
+    }
+    pub(crate) fn add_permissions_comment_encoding(&mut self, pos_to_header: &HashMap<usize, Header>) -> Result<(), ExcelDataError> {
         // to find permissions belonging to the resource: we look between id and bitstream or ark or iri or label (depends on what exists in headers)
         // permissions, encoding, comments belonging to resources: we look if the headers after the header with the properties are called 'permissions', 'encoding' or 'comment'
+        // 1 check for permissions of resource: check between id, label, ark, iri, and (if existing) bitstream
+        let mut positions: Vec<usize>  = vec![&self.label, &self.id, &self.iri, &self.ark]
+            .iter()
+            .filter(|res_header|res_header.is_some())
+            .map(|res_header|res_header.as_ref().unwrap().0)
+            .collect();
+        positions.sort();
+        let curr = positions.first().unwrap().to_owned();
+        while curr <= (positions.last().unwrap() + 1) {
+            let curr_header = pos_to_header.get(&curr);
+            let header = match curr_header {
+                None => {
+                    return Err(ExcelDataError::ParsingError("Cannot find header, because position doesn't exist. This should never happen.".to_string()));
+                }
+                Some(header) => {header}
+            };
+            match header {
+                Header::Permissions => {
+                    //self.permissions = Option::Some(curr);
+                    todo!()
+                }
+                _=> {continue}
+            }
+
+        }
+        // 2 check for permissions of bitstream
+        // 3 check for permissions of properties
         todo!()
     }
 }
@@ -214,18 +225,6 @@ fn prop_values_match_prop_type(prop_name: &String, prop_values: &ValueField, dat
     todo!()
 }
 
-pub fn data_resources(data_sheets: &Vec<DataSheet>, data_model: &DataModel, separator: &String, special_propnames: &SpecialPropnames) -> Result<Vec<DataResource>, ExcelDataError> {
-    let mut data_resources = vec![];
-    for data_sheet in data_sheets.iter() {
-        let headers: Headers = to_headers(&data_sheet.headers, &data_model.properties)?;
-        compare_header_to_data_model(data_sheet, data_model, &headers.pos_to_headers.values().collect())?;
-        for data in data_sheet.data_rows.iter() {
-            let data_resource: DataResource = DataResourceWrapper(data.to_owned()).to_data_resource(data_model, separator, &data_sheet.res_name, &headers)?;
-            data_resources.push(data_resource);
-        }
-    }
-    Ok(data_resources)
-}
 
 
 
