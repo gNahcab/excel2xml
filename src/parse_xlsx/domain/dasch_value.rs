@@ -17,9 +17,9 @@ impl ValueField {
     }
 }
 
-pub struct DaSCHValueWrapper (pub(crate) Vec<String>);
-impl DaSCHValueWrapper {
-    pub(crate) fn to_dasch_value(&self, data_model: &DataModel, header: &String) -> Result<ValueField, ExcelDataError> {
+pub struct ValueFieldWrapper(pub(crate) Vec<String>);
+impl ValueFieldWrapper {
+    pub(crate) fn to_value_field(&self, data_model: &DataModel, header: &String) -> Result<ValueField, ExcelDataError> {
         let curr_prop = match data_model.properties.iter().find(|property|property.name.eq(&header.to_owned())) {
             None => {
                 // should never happen

@@ -2,26 +2,26 @@ use crate::parse_xlsx::domain::permissions::Permissions;
 use crate::parse_xlsx::errors::ExcelDataError;
 
 pub struct Subheader {
-    encoding: Option<usize>,
-    comment: Option<usize>,
-    permissions: Option<usize>,
+    pub encoding: Option<usize>,
+    pub comment: Option<usize>,
+    pub permissions: Option<usize>,
 
 }
 
 impl Subheader {
-    pub(crate) fn new(transient_subheader: TransientSubheader) -> Self {
+    pub(crate) fn new(permissions: Option<usize>, encoding: Option<usize>, comment: Option<usize>) -> Self {
         Subheader{
-            encoding: transient_subheader.encoding,
-            comment: transient_subheader.comment,
-            permissions: transient_subheader.permissions,
+            encoding,
+            comment,
+            permissions,
         }
     }
 }
 
 pub struct TransientSubheader {
-    encoding: Option<usize>,
-    comment: Option<usize>,
-    permissions: Option<usize>,
+    pub(crate) encoding: Option<usize>,
+    pub(crate) comment: Option<usize>,
+    pub(crate) permissions: Option<usize>,
 }
 
 

@@ -123,47 +123,20 @@ pub fn data_sheets(sheets: Vec<IntermediateSheet>, parse_info: &ParseInformation
 }
 
 
-pub fn compare_header_to_data_model(res_name: &String, data_model: &DataModel, headers: &Vec<&Header>) -> Result<(), ExcelDataError> {
-    let resource = match data_model.resources.iter().find(|resource| resource.name.eq(res_name)) {
+pub fn compare_header_to_data_model(res_name: &String, dm_resources: &Vec<DMResource>, prop_names: &Vec<&String>, bitstream: Option<&Header>) -> Result<(), ExcelDataError> {
+    let resource = match dm_resources.iter().find(|resource| resource.name.eq(res_name)) {
         None => { return Err(ExcelDataError::ParsingError(format!("not found resource with name '{}' in data-model", res_name))) }
         Some(dm_resource) => { dm_resource }
     };
-    let mut missing_propnames: HashSet<String> = resource.properties
-        .iter()
-        .map(|property| property.propname.to_lowercase())
-        .collect::<Vec<_>>()
-        .into_iter()
-        .collect();
-    let mut missing_res_headers = HashSet::from([Header::ID, Header::Label]);
-    let mut bitstream = false;
+    let propnames_xlsx: Vec<String> = prop_names.iter().map(|propname|propname.to_lowercase()).collect();
+    let missing_propnames:Vec<_> = resource.properties.iter().map(|property|property.propname.to_lowercase()).filter(|propname| !propnames_xlsx.contains(propname)).collect();
 
-    for header in headers.iter() {
-        match header {
-            Header::ID => {
-                &missing_res_headers.remove(header);
-            }
-            Header::Label => {
-                &missing_res_headers.remove(header);
-            }
-            Header::Bitstream => {
-                bitstream = true;
-            }
-            ProjectProp(value) => {
-                &missing_propnames.remove(&value.trim().to_lowercase());
-            }
-            _ => {
-                // ignore other cases
-            }
-        }
-    }
-    if missing_res_headers.len() != 0 {
-        return Err(ExcelDataError::ParsingError(format!("not found all res-prop-headers in xlsx-headers. Missing res-prop-headers: {:?}, existing headers: {:?}", missing_res_headers, headers)))
-    }
     if missing_propnames.len() != 0 {
-        return Err(ExcelDataError::ParsingError(format!("not found all propnames in xlsx-headers. Missing propnames: {:?}, existing headers: {:?}", missing_propnames, headers)))
+        return Err(ExcelDataError::ParsingError(format!("not found all propnames in xlsx-headers. Missing propnames: {:?}, existing headers: {:?}", missing_propnames, prop_names)))
     }
-    if resource.super_field.ends_with("Representation") && !bitstream {
-        return Err(ExcelDataError::ParsingError(format!("Resource is a 'Representation' but not found bitstream-header in xlsx-headers. Existing headers: {:?}", headers)))
+
+    if resource.super_field.ends_with("Representation") && bitstream.is_none() {
+        return Err(ExcelDataError::ParsingError(format!("Resource is a 'Representation' but not found bitstream-header in xlsx-headers. Existing headers: {:?}", prop_names)))
     }
     Ok(())
 }

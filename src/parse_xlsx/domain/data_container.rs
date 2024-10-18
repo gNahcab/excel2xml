@@ -22,8 +22,8 @@ impl DataContainerWrapper {
     pub(crate) fn to_data_container(&self, data_model: &DataModel, separator: &String) -> Result<DataContainer, ExcelDataError> {
         let data_header: DataHeader = DataHeaderWrapper(self.0.headers.to_owned()).to_data_header(&data_model, &self.0.res_name)?;
         let mut data_resources: Vec<DataResource> = vec![];
-        for row in self.0.data_rows.iter() {
-            data_resources.push(DataResourceWrapper(row.to_owned()).to_data_resource(data_model, separator, &self.0.res_name, &data_header)?);
+        for (nr, row) in self.0.data_rows.iter().enumerate() {
+            data_resources.push(DataResourceWrapper(row.to_owned()).to_data_resource(data_model, separator, &self.0.res_name, &data_header, nr)?);
         }
         Ok(DataContainer::new(data_header, data_resources))
     }

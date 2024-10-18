@@ -1,36 +1,30 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 use crate::json2datamodel::domain::data_model::DataModel;
+use crate::json2datamodel::domain::property::Property;
 use crate::json2datamodel::domain::resource::DMResource;
 use crate::parse_xlsx::domain::data_row::DataRow;
 use crate::parse_xlsx::domain::data_sheet::compare_header_to_data_model;
-use crate::parse_xlsx::domain::header::Header;
-use crate::parse_xlsx::domain::headers::{to_headers, Headers};
-use crate::parse_xlsx::domain::permissions::Permissions;
+use crate::parse_xlsx::domain::header::{Extractor, Header, HeaderWrapper};
 use crate::parse_xlsx::domain::subheader::{Subheader, TransientSubheader};
 use crate::parse_xlsx::errors::ExcelDataError;
-use crate::parse_xlsx::errors::ExcelDataError::ParsingError;
 
 pub struct DataHeader {
-    id: usize,
-    label: usize,
-    permissions: Option<usize>,
-    iri: Option<usize>,
-    ark: Option<usize>,
-    bitstream: Option<usize>,
-    propname_to_pos: HashMap<String, usize>,
-
+    pub bitstream: Option<usize>,
+    pub bitstream_permissions: Option<usize>,
+    pub res_prop_to_pos: HashMap<Header, usize>,
+    pub propname_to_pos: HashMap<String, usize>,
+    pub propname_to_subheader: HashMap<String, Subheader>
 }
 
 impl DataHeader {
     fn new(transient_data_header: TransientDataHeader) -> DataHeader {
         DataHeader{
-            id: transient_data_header.id.unwrap(),
-            label: transient_data_header.label.unwrap(),
-            permissions: transient_data_header.permissions,
-            iri: transient_data_header.iri,
-            ark: transient_data_header.ark,
             bitstream: transient_data_header.bitstream,
+            bitstream_permissions: transient_data_header.bitstream_permissions,
+            res_prop_to_pos: transient_data_header.res_prop_to_pos,
             propname_to_pos: transient_data_header.propname_to_pos,
+            propname_to_subheader: transient_data_header.propname_to_subheader,
         }
     }
 }
@@ -38,12 +32,21 @@ impl DataHeader {
 struct TransientDataHeader {
     id: Option<usize>,
     label: Option<usize>,
-    permissions: Option<usize>,
-    iri: Option<usize>,
-    ark: Option<usize>,
     bitstream: Option<usize>,
+    bitstream_permissions: Option<usize>,
     propname_to_pos: HashMap<String, usize>,
-    propname_to_subheader: HashMap<String, Subheader>
+    propname_to_subheader: HashMap<String, Subheader>,
+    res_prop_to_pos: HashMap<Header, usize>,
+}
+
+impl TransientDataHeader {
+    pub(crate) fn add_propname(&mut self, propname: String, pos: usize) -> Result<(), ExcelDataError> {
+        if self.propname_to_pos.contains_key(&propname) {
+            return Err(ExcelDataError::ParsingError(format!("found duplicate propname in headers: '{}'", propname)));
+        }
+        self.propname_to_pos.insert(propname, pos);
+        Ok(())
+    }
 }
 
 impl TransientDataHeader {
@@ -51,73 +54,12 @@ impl TransientDataHeader {
         TransientDataHeader {
             id: None,
             label: None,
-            permissions: None,
-            iri: None,
-            ark: None,
             bitstream: None,
+            bitstream_permissions: None,
             propname_to_pos: Default::default(),
             propname_to_subheader: Default::default(),
+            res_prop_to_pos: Default::default(),
         }
-    }
-    pub(crate) fn add_id(&mut self,id: &String, pos: usize) -> Result<(), ExcelDataError>  {
-        if self.id.is_some() {
-            return Err(ExcelDataError::InputError( format!("Duplicate id: {}", id) ))
-        }
-        self.id = Option::from(pos);
-        Ok(())
-    }
-    pub(crate) fn add_label(&mut self, label: &String, pos: usize) -> Result<(), ExcelDataError>  {
-        if self.label.is_some() {
-            return Err(ExcelDataError::InputError( format!("Duplicate label: {}", label) ))
-        }
-        self.label = Option::from(pos);
-        Ok(())
-    }
-    pub(crate) fn add_permissions(&mut self, permissions: &Permissions, pos: usize) -> Result<(), ExcelDataError>  {
-        if self.permissions.is_some() {
-            return Err(ExcelDataError::InputError( format!("Duplicate permissions: {:?}", permissions) ))
-        }
-        self.permissions = Option::from(pos);
-        Ok(())
-    }
-    pub(crate) fn add_iri(&mut self, iri: &String, pos: usize) -> Result<(), ExcelDataError> {
-        if self.iri.is_some() {
-            return Err(ExcelDataError::InputError( format!("Duplicate iri: {}", iri) ))
-        }
-        self.iri = Option::from(pos);
-        Ok(())
-    }
-    pub(crate) fn add_ark(&mut self, ark: &String, pos: usize) -> Result<(), ExcelDataError>  {
-        if self.ark.is_some() {
-            return Err(ExcelDataError::InputError( format!("Duplicate ark: {}", ark) ))
-        }
-        self.ark = Option::from(pos);
-        Ok(())
-    }
-    pub(crate) fn add_bitstream(&mut self, bitstream: &String, pos: usize) -> Result<(), ExcelDataError> {
-        if self.bitstream.is_some() {
-            return Err(ExcelDataError::InputError( format!("Duplicate bitstream: {}", bitstream) ))
-        }
-        self.bitstream = Option::from(pos);
-        Ok(())
-    }
-    pub(crate) fn add_positions_of_prop(&mut self, prop_name: String, pos: usize) -> Result<(), ExcelDataError> {
-        if self.propname_to_pos.contains_key(&prop_name) {
-            return Err(ExcelDataError::InputError( format!("Duplicate prop_name found: {}", prop_name) ))
-        }
-        self.propname_to_pos.insert(prop_name, pos.to_owned());
-        Ok(())
-    }
-    pub(crate) fn properties_correct(&self, data_model: &DataModel, res_name: String) -> Result<(), ExcelDataError> {
-        let propnames_of_res = data_model.resources.iter().filter(|resource| resource.name == res_name).collect::<Vec<&DMResource>>().first().unwrap()
-            .properties.iter().map( |res_property| res_property.propname.as_str()).collect::<Vec<&str>>();
-        for (prop_name, _) in self.propname_to_pos.iter() {
-            // propname must be part of resource
-            if !propnames_of_res.contains(&res_name.as_str()) {
-                return Err(ParsingError(format!("Property '{}' not found in Resource '{}'. All propnames: {:?}", prop_name, res_name, propnames_of_res)))
-            }
-        }
-        Ok(())
     }
     pub(crate) fn label_id_exist(&self) -> Result<(), ExcelDataError> {
         // label, id must exist
@@ -129,173 +71,224 @@ impl TransientDataHeader {
         }
         Ok(())
     }
-    pub(crate) fn positions_correct(&self) -> Result<(), ExcelDataError> {
+    pub(crate) fn positions_correct(&self, last: &usize) -> Result<(), ExcelDataError> {
         // check that id, label, iri, ark are positioned at the beginning and all properties after
-        let mut positions: Vec<usize>  = vec![&self.label, &self.id, &self.iri, &self.ark]
-            .iter()
-            .filter(|res_header|res_header.is_some())
-            .map(|res_header|res_header.as_ref().unwrap().to_owned())
-            .collect();
-        positions.sort();
+        let positions_propnames: Vec<&usize> = self.propname_to_pos.values().collect();
 
-        let positions_propnames: Vec<&usize> = self.propname_to_pos.iter().map(|(_, pos)|pos).collect();
-
-        if positions.last().unwrap() > positions_propnames.first().unwrap() {
-
-            return Err(ExcelDataError::ParsingError(format!("First header of propnames '{}' is before last header of resource '{}' (id, label, ark, iri)", positions_propnames.first().unwrap(), positions.last().unwrap())));
+        if last > positions_propnames.first().unwrap() {
+            return Err(ExcelDataError::ParsingError(format!("First header of propnames '{}' is before last header of resource '{}' (id, label, ark, iri)", positions_propnames.first().unwrap(), last)));
         }
         Ok(())
     }
-    pub(crate) fn add_permissions_comment_encoding(&mut self, pos_to_header: &HashMap<usize, Header>) -> Result<(), ExcelDataError> {
-        // to find permissions belonging to the resource: we look between id and bitstream or ark or iri or label (depends on what exists in headers)
-        // permissions, encoding, comments belonging to resources: we look if the headers after the header with the properties are called 'permissions', 'encoding' or 'comment'
-        // 1 check for permissions of resource: check between id, label, ark, iri( if iri, ark exist)
-        let(first, last) = first_last_of_res_prop([self.label, self.id, self.ark, self.iri]);
-        self.add_permissions_of_resource(pos_to_header, first, last)?;
-        // 2 check for permissions of bitstream
-        self.add_permissions_of_bitstream(pos_to_header)?;
-        // 3 check for permissions of properties
-        self.add_permissions_of_properties(pos_to_header, last)?;
-        Ok(())
-    }
 
-    fn add_permissions_of_resource(&mut self, pos_to_header: &HashMap<usize, Header>, start: usize, last: usize) -> Result<(), ExcelDataError> {
-        // 1 check for permissions of resource: check between id, label, ark, iri( if iri, ark exist)
-        let mut curr = start;
-        while curr <= (last + 1) {
-            let curr_position = pos_to_header.get(&curr);
+
+}
+pub struct DataHeaderWrapper (pub(crate) DataRow);
+impl DataHeaderWrapper {
+    pub(crate) fn to_data_header(&self, dm_model: &DataModel, res_name: &String) -> Result<DataHeader, ExcelDataError> {
+        let (pos_to_special_prop, pos_to_propname) = headers_special_and_propnames(&self.0.rows, &dm_model.properties)?;
+        let resource = match dm_model.resources.iter().find(|resource| resource.name.eq(res_name)) {
+            None => { return Err(ExcelDataError::ParsingError(format!("not found resource with name '{}' in data-model", res_name))) }
+            Some(dm_resource) => { dm_resource }
+        };
+        compare_header_to_data_model(res_name, &dm_model.resources, &pos_to_propname.values().collect(), pos_to_special_prop.values().find(|header| header == &&Header::Bitstream))?;
+        let mut transient_data_header = TransientDataHeader::new();
+        add_propnames(&mut transient_data_header, &pos_to_propname, resource)?;
+        add_props_of_res(&mut transient_data_header, &pos_to_special_prop)?;
+        add_permissions_comment_encoding(&mut transient_data_header, &pos_to_special_prop, &pos_to_propname)?;
+        Ok(DataHeader::new(transient_data_header))
+    }
+}
+
+fn add_permission_of_resource(transient_data_header:  &mut TransientDataHeader, pos_to_special_prop: &HashMap<usize, Header>) -> Result<(), ExcelDataError> {
+    // 1 check for permissions of resource: check between id, label, ark, iri( if iri, ark exist) + 1
+    let mut curr: usize = transient_data_header.res_prop_to_pos.values().collect::<Vec<_>>().first().unwrap().to_owned().to_owned();
+    let last: _ = transient_data_header.res_prop_to_pos.values().collect::<Vec<_>>().last().unwrap().to_owned().to_owned();
+    let mut permission: Option<(Header, usize)> = Option::None;
+    while curr <= (last + 1) {
+        let header = match pos_to_special_prop.get(&curr) {
+            None => {
+                // position was filtered out before, so it doesn't exist
+                // and we can continue by adding +1 to curr
+                curr += 1;
+                continue;
+            }
+            Some(header) => {header}
+        };
+        curr += 1;
+        match header {
+            Header::Permissions => {
+                if transient_data_header.bitstream_permissions.is_some() && transient_data_header.bitstream_permissions.unwrap() == curr {
+                    continue;
+                }
+                if permission.is_some() {
+                    return Err(ExcelDataError::ParsingError("found multiple permissions in header-part reserved for resource-properties".to_string()));
+                }
+                permission = Option::from((header.to_owned(), curr));
+            }
+            _=> {continue;}
+        }
+    }
+    if permission.is_some() {
+        &transient_data_header.res_prop_to_pos.insert(permission.as_ref().unwrap().to_owned().0, permission.as_ref().unwrap().to_owned().1);
+    }
+    Ok(())
+}
+
+pub fn headers_special_and_propnames(raw_header_row: &Vec<String>, properties: &Vec<Property>) -> Result<(HashMap<usize, Header>, HashMap<usize, String>), ExcelDataError> {
+    let mut pos_to_propname: HashMap<usize, String> = HashMap::new();
+    let mut pos_to_special_props: HashMap<usize, Header> = HashMap::new();
+    for (pos, raw_header) in raw_header_row.iter().enumerate() {
+        let header = match HeaderWrapper(raw_header.to_owned()).to_header(&properties) {
+            Ok(header) => {header}
+            Err(_) => {
+                //todo: for now ignore headers that don't exist, later require specifying this in hcl?
+                continue
+            }
+        };
+        if matches!(header, Header::ProjectProp(_)) {
+            pos_to_propname.insert(pos, header.extract_value()?);}
+        else {
+            pos_to_special_props.insert(pos, header.to_owned());
+        }
+    }
+    no_duplicates(pos_to_propname.values().collect())?;
+    no_duplicates(pos_to_special_props.values().collect())?;
+    Ok((pos_to_special_props, pos_to_propname))
+}
+fn add_props_of_res(mut transient_data_header: &mut TransientDataHeader, pos_to_special_prop: &HashMap<usize, Header>) -> Result<(), ExcelDataError> {
+    for (pos, header) in pos_to_special_prop.iter() {
+        match header {
+            Header::ARK | Header::IRI  => {
+                transient_data_header.res_prop_to_pos.insert(header.to_owned(), pos.to_owned());
+            },
+            Header::Bitstream => {
+                transient_data_header.bitstream = Some(pos.to_owned());
+            },
+            Header::ID => {
+                transient_data_header.id = Some(pos.to_owned());
+                transient_data_header.res_prop_to_pos.insert(header.to_owned(), pos.to_owned());
+            },
+            Header::Label => {
+                transient_data_header.label = Some(pos.to_owned());
+                transient_data_header.res_prop_to_pos.insert(header.to_owned(), pos.to_owned());
+            },
+            _ => {
+                // permissions, comment, encoding: cannot be processed here; we deal with them after matching all other headers
+            },
+        }
+    }
+    transient_data_header.label_id_exist()?;
+    add_permissions_of_res_bitstream(transient_data_header, pos_to_special_prop);
+    add_permission_of_resource(&mut transient_data_header, &pos_to_special_prop)?;
+    Ok(())
+}
+pub(crate) fn add_permissions_of_res_bitstream(transient_header: &mut TransientDataHeader, pos_to_special_prop : &HashMap<usize, Header>) {
+    let (pos) = match pos_to_special_prop.iter().filter(|(pos, header)| matches!(header, Header::Bitstream)).collect::<Vec<(&usize, &Header)>>().first() {
+        None => {
+            // bitstream not found
+            return;
+        }
+        Some((pos, _)) => {pos.to_owned().to_owned()}
+    };
+    // if hashmap contains a key pos+1 and this value is a permissions-header, we are sure that this permissions belongs to bitstream; otherwise return
+    let next_pos = pos + 1;
+    let candidate = pos_to_special_prop.get(&next_pos);
+    match candidate {
+        None => {
+            return;
+        }
+        Some(candidate) => {
+            match candidate {
+                Header::Permissions => {
+                    transient_header.bitstream_permissions = Some(next_pos);
+                }
+                _ => {
+                    // next is not permissions: return
+                    return;
+                }
+            }
+        }
+    }
+}
+fn add_propnames(transient_data_header: &mut TransientDataHeader, pos_to_propname: &HashMap<usize, String>, resource: &DMResource) -> Result<(), ExcelDataError> {
+    let propnames_dm: Vec<_> = resource.properties.iter().map(|prop|&prop.propname).collect();
+
+    for (pos, propname) in pos_to_propname.iter() {
+        if !propnames_dm.contains(&propname) {
+            return Err(ExcelDataError::ParsingError(format!("Propname '{}' is a propname, but it is not part of resource '{}'", propname, resource.name)));
+        }
+        transient_data_header.add_propname(propname.to_owned(), pos.to_owned())?;
+    }
+    Ok(())
+}
+pub(crate) fn add_permissions_comment_encoding(transient_data_header: &mut TransientDataHeader, pos_to_special_prop: &HashMap<usize, Header>, pos_to_propname: &HashMap<usize, String>) -> Result<(), ExcelDataError> {
+    // to find permissions belonging to the resource: we look between id and bitstream or ark or iri or label (depends on what exists in headers)
+    // permissions, encoding, comments belonging to resources: we look if the headers after the header with the properties are called 'permissions', 'encoding' or 'comment'
+
+    // 1 check for permissions of resource: check between id, label, ark, iri( if iri, ark exist)
+    let last = transient_data_header.res_prop_to_pos.values().last().unwrap();
+    transient_data_header.positions_correct(last)?;
+    // 3 check for permissions of properties
+    add_permissions_of_properties(transient_data_header, pos_to_special_prop, pos_to_propname)?;
+    Ok(())
+}
+fn add_permissions_of_properties(transient_data_header: &mut TransientDataHeader, pos_to_special_header: &HashMap<usize, Header>, pos_to_propname: &HashMap<usize, String>) -> Result<(), ExcelDataError>{
+    let mut positions_special_prop: Vec<_> = pos_to_special_header.keys().collect::<Vec<_>>();
+    positions_special_prop.sort();
+    for (pos, prop_name) in pos_to_propname.iter() {
+        let mut curr = pos.to_owned();
+        let mut transient_subheader = TransientSubheader::new();
+        loop {
             curr += 1;
-            let header = match curr_position {
+            if pos_to_propname.contains_key(&curr) {
+                // curr is a propname, so we won't find any permissions etc. for the propname before
+                break
+            }
+            if positions_special_prop.last().unwrap() < &&curr {
+                // last special prop passed, we would loop into infinity otherwise
+                break
+            }
+            let header = match pos_to_special_header.get(&curr) {
                 None => {
-                    return Err(ExcelDataError::ParsingError("Cannot find header, because position doesn't exist. This should never happen.".to_string()));
+                    // position was filtered out before, so it doesn't exist
+                    // and we can continue by adding +1 to curr
+                    continue
                 }
                 Some(header) => {header}
             };
             match header {
                 Header::Permissions => {
-                    self.permissions = Some(curr)
+                    transient_subheader.add_permissions(curr, prop_name)?;
                 }
-                _=> {continue}
-            }
-        }
-        Ok(())
-    }
-
-    fn add_permissions_of_bitstream(&mut self, pos_to_header: &HashMap<usize, Header>) -> Result<(), ExcelDataError> {
-        // if there is a permissions after bitstream, add it, otherwise return
-        if self.bitstream.is_none() {
-            return Ok(());
-        }
-        let pos = self.bitstream.unwrap() + 1;
-        let permissions_candidate = match pos_to_header.get(&pos) {
-            None => {
-                // out of range
-                return Ok(());
-            }
-            Some(permissions_candidate) => { permissions_candidate }
-        };
-        match permissions_candidate {
-            Header::Permissions => {
-                self.permissions = Some(pos);
-                Ok(())
-            }
-            _ => {Ok(())}
-        }
-    }
-
-    fn add_permissions_of_properties(&mut self, pos_to_header: &HashMap<usize, Header>, last: usize) -> Result<(), ExcelDataError>{
-        let mut curr = last + 1;
-        while curr < pos_to_header.len() {
-            let prop_header = pos_to_header.get(&curr).unwrap();
-            match prop_header {
-                Header::ProjectProp(prop_name) => {
-                    loop {
-                        curr += 1;
-                        let header = match pos_to_header.get(&curr) {
-                            None => {
-                                // position was filtered out before, so it doesn't exist
-                                // and we can continue
-                                continue
-                            }
-                            Some(header) => {header}
-                        };
-                        let mut transient_subheader = TransientSubheader::new();
-                        match header {
-                            Header::Permissions => {
-                                transient_subheader.add_permissions(curr, prop_name)?;
-                            }
-                            Header::Comment => {
-                                transient_subheader.add_comment(curr, prop_name)?;
-                            }
-                            Header::Encoding => {
-                                transient_subheader.add_encoding(curr, prop_name)?;
-                            }
-                            _=> {
-                                if transient_subheader.has_values() {
-                                    let subheader = Subheader::new(transient_subheader);
-                                    self.propname_to_subheader.insert(prop_name.to_string(), subheader);
-                                }
-                                break;
-                            }
-                        }
-
-                    }
+                Header::Comment => {
+                    transient_subheader.add_comment(curr, prop_name)?;
                 }
-                _ => {return Err(ExcelDataError::ParsingError("grave error this should never happen".to_string()));}
+                Header::Encoding => {
+                    transient_subheader.add_encoding(curr, prop_name)?;
+                }
+                _=> {
+                    // if not encoding, permissions, comment
+                    break;
+                }
             }
         }
-        todo!()
+        if transient_subheader.has_values() {
+            let subheader = Subheader::new(transient_subheader.permissions, transient_subheader.encoding, transient_subheader.comment);
+            transient_data_header.propname_to_subheader.insert(prop_name.to_string(), subheader);
+        }
     }
+    Ok(())
 }
-fn first_last_of_res_prop(res_props: [Option<usize>; 4]) -> (usize, usize)  {
-    let mut positions:Vec<usize> = res_props.iter()
-        .filter(|res_header|res_header.is_some())
-        .map(|res_header|res_header.as_ref().unwrap().to_owned())
-        .collect();
-    positions.sort();
-    (positions.first().unwrap().to_owned(), positions.last().unwrap().to_owned())
-}
-pub struct DataHeaderWrapper (pub(crate) DataRow);
-impl DataHeaderWrapper {
-    pub(crate) fn to_data_header(&self, dm_model: &DataModel, res_name: &String) -> Result<DataHeader, ExcelDataError> {
-        let headers: Headers = to_headers(&self.0.rows, &dm_model.properties)?;
-        compare_header_to_data_model(res_name, dm_model, &headers.pos_to_headers.values().collect())?;
-        let mut transient_data_header = TransientDataHeader::new();
-        for (pos, header) in headers.pos_to_headers.iter() {
-            match header {
-                Header::ID => {
-                    let id = &self.0.rows[pos.to_owned()];
-                    transient_data_header.add_id(id, pos.to_owned())?
-                }
-                Header::Label => {
-                    let label = &self.0.rows[pos.to_owned()];
-                    transient_data_header.add_label(label, pos.to_owned())?
-                }
-                Header::ARK => {
-                    let ark = &self.0.rows[pos.to_owned()];
-                    transient_data_header.add_ark(ark, pos.to_owned())?
-                }
-                Header::IRI => {
-                    let iri = &self.0.rows[pos.to_owned()];
-                    transient_data_header.add_iri(iri, pos.to_owned())?
-                }
-                Header::Bitstream => {
-                    let bitstream = &self.0.rows[pos.to_owned()];
-                    transient_data_header.add_bitstream(bitstream, pos.to_owned())?
-                }
-                Header::ProjectProp(prop_header) => {
-                    transient_data_header.add_positions_of_prop(prop_header.to_owned(), pos.to_owned())?;
-                }
-                _ => {
-                    // permissions, comment, encoding: cannot be processed here; we deal with them after matching all other headers
-                }
-            }
+fn no_duplicates<T>(headers: Vec<T>) -> Result<(), ExcelDataError>
+where T: Hash + ToOwned + std::fmt::Debug + Copy, T: std::cmp::Eq
+{
+    let mut hash_set: HashSet<T> = HashSet::new();
+    for header in headers {
+        if !hash_set.insert(header) {
+            return Err(ExcelDataError::InputError(format!("found duplicate in headers: {:?}", header)));
         }
-        transient_data_header.positions_correct()?;
-        transient_data_header.label_id_exist()?;
-        transient_data_header.add_permissions_comment_encoding(&headers.pos_to_headers)?;
-        Ok(DataHeader::new(transient_data_header))
     }
-
+    Ok(())
 }
 

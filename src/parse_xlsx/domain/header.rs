@@ -43,11 +43,8 @@ impl HeaderWrapper {
             "bitstream" => {
                 Ok(Header::Bitstream)
             },
-            "permissions" => {
+            "permissions"|"permission" => {
                 Ok(Header::Permissions)
-            },
-            "permission" => {
-                Ok(Header::Bitstream)
             },
             _ => {
                 if propnames.contains(&&self.0) {
