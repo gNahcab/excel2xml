@@ -26,6 +26,7 @@ use crate::parse_xlsx::domain::data_container::{DataContainer, DataContainerWrap
 use crate::parse_xlsx::domain::intermediate_sheet::{intermediate_sheets, IntermediateSheet};
 use crate::parse_xlsx::domain::data_sheet::{data_sheets, DataSheet};
 use crate::parse_xlsx::errors::ExcelDataError;
+use crate::write_xml::write_xml::write_xml;
 
 fn main() {
     dotenv().ok();
@@ -49,6 +50,9 @@ fn main() {
     let mut data_sheets:Vec<DataSheet> = data_sheets(intermediate_sheets, &parse_info).unwrap();
     // structure & review
     let data_containers: Vec<DataContainer> = data_containers(&data_sheets, &data_model,&parse_info.separator).unwrap();
+    for  data_container in data_containers.iter() {
+        write_xml(data_container, &data_model).unwrap();
+    }
 }
 
 

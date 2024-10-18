@@ -1,28 +1,16 @@
+use crate::json2datamodel::domain::object::ValueObject;
 use crate::parse_xlsx::domain::encoding::Encoding;
 use crate::parse_xlsx::domain::permissions::Permissions;
+use crate::parse_xlsx::errors::ExcelDataError;
 
-pub struct SubheaderValues {
+
+pub struct TransientSubheaderValues {
     pub permissions: Option<Vec<Permissions>>,
     pub encodings: Option<Vec<Encoding>>,
     pub comments: Option<Vec<String>>
 }
 
-impl SubheaderValues {
-    pub(crate) fn new(transient_subheader_values: TransientSubheaderValues) -> Self {
-        SubheaderValues {
-            permissions: transient_subheader_values.permissions,
-            encodings: transient_subheader_values.encodings,
-            comments: transient_subheader_values.comments,
-        }
-    }
-}
 
-pub struct TransientSubheaderValues {
-    permissions: Option<Vec<Permissions>>,
-    encodings: Option<Vec<Encoding>>,
-    comments: Option<Vec<String>>
-
-}
 
 impl TransientSubheaderValues {
     pub(crate) fn new() -> TransientSubheaderValues {
@@ -43,5 +31,14 @@ impl TransientSubheaderValues {
     }
     pub(crate) fn is_empty(&self) -> bool {
         self.comments.is_none() & self.encodings.is_none() & self.comments.is_none()
+    }
+    pub(crate) fn values_ok(&self, value_object:  &ValueObject, propname: &String) -> Result<(), ExcelDataError> {
+        if self.encodings.is_some() {
+            if !matches!(value_object, ValueObject::TextValue) {
+                return Err(ExcelDataError::ParsingError(format!("found encoding, but Value-Object of Property '{}' is not 'TextValue' but: '{:?}'", propname, value_object)));
+            }
+            // todo check if SimpleText or RichText; if SimpleText: no XML allowed
+        }
+        Ok(())
     }
 }

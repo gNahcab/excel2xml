@@ -1,9 +1,20 @@
+use std::fmt::Display;
 use crate::parse_xlsx::domain::encoding::Encoding::{UTF8, XML};
 use crate::parse_xlsx::errors::ExcelDataError;
 
+#[derive(Clone)]
 pub enum Encoding {
     UTF8,
     XML
+}
+impl Display for Encoding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            UTF8 => { "utf8".to_string() }
+            XML => { "xml".to_string() }
+        };
+        write!(f, "{}", str)
+    }
 }
 
 pub struct EncodingWrapper (pub(crate) String);

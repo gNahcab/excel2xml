@@ -1,24 +1,23 @@
 use std::collections::HashMap;
 use crate::json2datamodel::domain::data_model::DataModel;
-use crate::parse_xlsx::domain::dasch_value::{ValueField, ValueFieldWrapper};
+use crate::parse_xlsx::domain::dasch_value_field::{DaschValueField, ValueFieldWrapper};
 use crate::parse_xlsx::domain::data_header::DataHeader;
 use crate::parse_xlsx::domain::data_row::DataRow;
 use crate::parse_xlsx::domain::encoding::{Encoding, EncodingWrapper};
 use crate::parse_xlsx::domain::permissions::{Permissions, PermissionsWrapper};
 use crate::parse_xlsx::domain::header::Header;
-use crate::parse_xlsx::domain::subheader_value::{SubheaderValues, TransientSubheaderValues};
+use crate::parse_xlsx::domain::subheader_value::TransientSubheaderValues;
 use crate::parse_xlsx::errors::ExcelDataError;
 
 pub struct DataResource {
-    id: String,
-    label: String,
-    iri: Option<String>,
-    ark: Option<String>,
-    res_permissions: Option<Permissions>,
-    bitstream: Option<String>,
-    bitstream_permissions: Option<Permissions>,
-    propname_to_values: HashMap<String, ValueField>,
-    propname_to_subheader: HashMap<String, SubheaderValues>
+    pub id: String,
+    pub label: String,
+    pub iri: Option<String>,
+    pub ark: Option<String>,
+    pub res_permissions: Permissions,
+    pub bitstream: Option<String>,
+    pub bitstream_permissions: Option<Permissions>,
+    pub propname_to_values: HashMap<String, DaschValueField>,
 }
 
 impl DataResource {
@@ -29,11 +28,10 @@ impl DataResource {
             label: transient_data_resource.label.unwrap(),
             iri: transient_data_resource.iri,
             ark: transient_data_resource.ark,
-            res_permissions: transient_data_resource.res_permissions,
+            res_permissions: transient_data_resource.res_permissions.unwrap(),
             bitstream: transient_data_resource.bitstream,
             bitstream_permissions: transient_data_resource.bitstream_permissions,
             propname_to_values: transient_data_resource.propname_to_values,
-            propname_to_subheader: transient_data_resource.propname_to_subheader,
         }
     }
 }
@@ -95,7 +93,7 @@ impl DataResourceWrapper {
             transient_data_resource.add_bitstream(value.to_string());
             if headers.bitstream_permissions.is_some() {
                 let value = &self.0.rows[headers.bitstream.unwrap()].trim();
-                    transient_data_resource.add_bitstream_permissions(value.to_string());
+                    transient_data_resource.add_bitstream_permissions(value.to_string())?;
             }
         }
         Ok(())
@@ -103,53 +101,61 @@ impl DataResourceWrapper {
 
     fn add_propnames_and_subheaders(&self, transient_data_resource: &mut TransientDataResource, headers: &DataHeader, separator: &String, data_model: &DataModel, row_nr: usize) -> Result<(), ExcelDataError> {
         for (propname, pos ) in headers.propname_to_pos.iter() {
+            let subheader = self.subheader(headers, propname, separator, data_model)?;
             let raw_value = &self.0.rows[pos.to_owned()].trim();
             let values = split_field(raw_value, separator);
-            let value_field: ValueField = ValueFieldWrapper(values).to_value_field(data_model, propname)?;
+            let value_field: DaschValueField = ValueFieldWrapper(values).to_dasch_value_field(data_model, propname, subheader)?;
             transient_data_resource.add_values_of_prop(propname, value_field);
-            match headers.propname_to_subheader.get(propname) {
-                None => {
-                    // do nothing
-                }
-                Some(subheader) => {
-                    let mut transient_subheader_value: TransientSubheaderValues = TransientSubheaderValues::new();
-                    if subheader.permissions.is_some() {
-                        let raw_value = &self.0.rows[subheader.permissions.unwrap()].trim();
-                        let values = split_field(raw_value, separator);
-                        if !values.is_empty() {
-                            let mut permissions = vec![];
-                            for value in values {
-                                permissions.push(PermissionsWrapper(value).to_permissions()?);
-                            }
-                            transient_subheader_value.add_permissions(permissions);
-                        }
-                    }
-                    if subheader.encoding.is_some() {
-                        let raw_value = &self.0.rows[subheader.encoding.unwrap()].trim();
-                        let values = split_field(raw_value, separator);
-                        if !values.is_empty() {
-                            let mut encodings: Vec<Encoding> = vec![];
-                            for value in values {
-                                encodings.push(EncodingWrapper(value).to_encoding()?);
-                            }
-                            transient_subheader_value.add_encodings(encodings);
-                        }
+        }
+        transient_data_resource.complete(row_nr)?;
+        Ok(())
+    }
 
-                    }
-                    if subheader.comment.is_some() {
-                        let raw_value = &self.0.rows[subheader.encoding.unwrap()].trim();
-                        let values = split_field(raw_value, separator);
-                        if !values.is_empty() {
-                            transient_subheader_value.add_comments(values);
+    fn subheader(&self, headers: &DataHeader, propname: &String, separator: &String, data_model: &DataModel) -> Result<Option<TransientSubheaderValues>, ExcelDataError> {
+        match headers.propname_to_subheader.get(propname) {
+            None => {
+                Ok(None)
+            }
+            Some(subheader) => {
+                let mut transient_subheader_value: TransientSubheaderValues = TransientSubheaderValues::new();
+                if subheader.permissions.is_some() {
+                    let raw_value = &self.0.rows[subheader.permissions.unwrap()].trim();
+                    let values = split_field(raw_value, separator);
+                    if !values.is_empty() {
+                        let mut permissions = vec![];
+                        for value in values {
+                            permissions.push(PermissionsWrapper(value).to_permissions()?);
                         }
-                    }
-                    if !transient_subheader_value.is_empty() {
-                        transient_data_resource.add_subheader_value(propname.to_owned(), SubheaderValues::new(transient_subheader_value));
+                        transient_subheader_value.add_permissions(permissions);
                     }
                 }
+                if subheader.encoding.is_some() {
+                    let raw_value = &self.0.rows[subheader.encoding.unwrap()].trim();
+                    let values = split_field(raw_value, separator);
+                    if !values.is_empty() {
+                        let mut encodings: Vec<Encoding> = vec![];
+                        for value in values {
+                            encodings.push(EncodingWrapper(value).to_encoding()?);
+                        }
+                        transient_subheader_value.add_encodings(encodings);
+                    }
+
+                }
+                if subheader.comment.is_some() {
+                    let raw_value = &self.0.rows[subheader.encoding.unwrap()].trim();
+                    let values = split_field(raw_value, separator);
+                    if !values.is_empty() {
+                        transient_subheader_value.add_comments(values);
+                    }
+                }
+                if !transient_subheader_value.is_empty() {
+                    let object = &data_model.properties.iter().find(|property|property.name.eq(propname)).unwrap().object;
+                    transient_subheader_value.values_ok(object, propname)?;
+                    return Ok(Some(transient_subheader_value));
+                }
+                Ok(None)
             }
         }
-        Ok(())
     }
 }
 
@@ -173,8 +179,10 @@ struct TransientDataResource {
     ark: Option<String>,
     bitstream: Option<String>,
     bitstream_permissions: Option<Permissions>,
-    propname_to_values: HashMap<String, ValueField>,
-    propname_to_subheader: HashMap<String, SubheaderValues>,
+    propname_to_values: HashMap<String, DaschValueField>,
+}
+
+impl TransientDataResource {
 }
 
 impl TransientDataResource {
@@ -188,7 +196,6 @@ impl TransientDataResource {
             propname_to_values: Default::default(),
             bitstream: None,
             bitstream_permissions: None,
-            propname_to_subheader: Default::default(),
         }
     }
     pub(crate) fn add_id(&mut self, id: String)  {
@@ -218,11 +225,22 @@ impl TransientDataResource {
         self.bitstream_permissions =  Some(PermissionsWrapper(value).to_permissions()?);
         Ok(())
     }
-    pub(crate) fn add_values_of_prop(&mut self, prop_name: &String, value: ValueField) {
+    pub(crate) fn add_values_of_prop(&mut self, prop_name: &String, value: DaschValueField) {
         self.propname_to_values.insert(prop_name.to_owned(), value);
     }
-    pub(crate) fn add_subheader_value(&mut self, propname: String, subheader_values: SubheaderValues) {
-        self.propname_to_subheader.insert(propname, subheader_values);
+    pub(crate) fn complete(&self, row_nr: usize) -> Result<(), ExcelDataError> {
+        if self.id.is_none() {
+            return Err(ExcelDataError::ParsingError(format!("No id found in row-nr '{}'!", row_nr)));
+
+        }
+        if self.res_permissions.is_none() {
+            return Err(ExcelDataError::ParsingError(format!("No res-permissions found in row-nr '{}'!", row_nr)));
+
+        }
+        if self.label.is_none() {
+            return Err(ExcelDataError::ParsingError(format!("No label found in row-nr '{}'!", row_nr)));
+        }
+        Ok(())
     }
 }
 

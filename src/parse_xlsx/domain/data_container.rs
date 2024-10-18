@@ -3,16 +3,16 @@ use crate::parse_xlsx::domain::data_header::{DataHeader, DataHeaderWrapper};
 use crate::parse_xlsx::domain::data_resource::{DataResource, DataResourceWrapper};
 use crate::parse_xlsx::domain::data_sheet::DataSheet;
 use crate::parse_xlsx::errors::ExcelDataError;
-use crate::special_propnames::SpecialPropnames;
 
 pub struct DataContainer {
-    data_header: DataHeader,
-    resources: Vec<DataResource>
+    pub res_name: String,
+    pub data_header: DataHeader,
+    pub resources: Vec<DataResource>
 }
 
 impl DataContainer {
-    fn new(data_header: DataHeader, data_resources: Vec<DataResource>) -> Self {
-        DataContainer{ data_header,resources:  data_resources}
+    fn new(data_header: DataHeader, data_resources: Vec<DataResource>, res_name: String) -> Self {
+        DataContainer{res_name, data_header,resources:  data_resources}
     }
 }
 
@@ -25,7 +25,7 @@ impl DataContainerWrapper {
         for (nr, row) in self.0.data_rows.iter().enumerate() {
             data_resources.push(DataResourceWrapper(row.to_owned()).to_data_resource(data_model, separator, &self.0.res_name, &data_header, nr)?);
         }
-        Ok(DataContainer::new(data_header, data_resources))
+        Ok(DataContainer::new(data_header, data_resources, self.0.res_name.to_owned()))
     }
 }
 
