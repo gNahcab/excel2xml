@@ -19,3 +19,4 @@ Cargo.lock
 # files
 .env
 .xlsx
+test.xml
