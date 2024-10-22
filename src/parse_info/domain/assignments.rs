@@ -27,12 +27,14 @@ impl TransientAssignments {
         TransientAssignments{ header_to_propname: Default::default(), find_rest: None }
     }
     fn add_command(&mut self, command: ParseInfoCommand) -> Result<(), HCLDataError> {
-        match command { ParseInfoCommand::FINDPaths => {
+        match command { ParseInfoCommand::FINDPaths =>
+            {
             if self.find_rest.is_some() {
                 return Err(HCLDataError::InputError(format!("duplicate command cmd-find in assignments. Assignments already collected: '{:?}'", self.header_to_propname)));
             }
             self.find_rest = Option::Some(true);
-        } }
+            }
+        }
         Ok(())
     }
      fn add_header_to_prop_name(&mut self, header: String, prop_name: String) -> Result<(), HCLDataError> {

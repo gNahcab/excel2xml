@@ -1,12 +1,11 @@
 use std::collections::HashMap;
-use crate::json2datamodel::domain::data_model::DataModel;
+use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_xlsx::domain::dasch_value_field::{DaschValueField, ValueFieldWrapper};
 use crate::parse_xlsx::domain::data_header::DataHeader;
 use crate::parse_xlsx::domain::data_row::DataRow;
-use crate::parse_xlsx::domain::encoding::{Encoding, EncodingWrapper};
 use crate::parse_xlsx::domain::permissions::{Permissions, PermissionsWrapper};
 use crate::parse_xlsx::domain::header::Header;
-use crate::parse_xlsx::domain::subheader_value::TransientSubheaderValues;
+use crate::parse_xlsx::domain::subheader_value::{subheader_value, SubheaderValues};
 use crate::parse_xlsx::errors::ExcelDataError;
 
 pub struct DataResource {
@@ -39,11 +38,13 @@ impl DataResource {
 pub struct DataResourceWrapper(pub(crate) DataRow);
 
 impl DataResourceWrapper {
-    pub(crate) fn to_data_resource(&self, data_model: &DataModel, separator: &String, res_name: &String, headers: &DataHeader, row_nr: usize) -> Result<DataResource, ExcelDataError> {
+    pub(crate) fn to_data_resource(&self, data_model: &DataModel, separator: &String, headers: &DataHeader, row_nr: usize) -> Result<DataResource, ExcelDataError> {
         let mut transient_data_resource = TransientDataResource::new();
         self.add_res_prop(&mut transient_data_resource, headers, row_nr)?;
         self.add_bitstream(&mut transient_data_resource, headers, row_nr)?;
-        self.add_propnames_and_subheaders(&mut transient_data_resource, headers, separator, data_model, row_nr)?;
+        self.add_propnames_and_subheaders(&mut transient_data_resource, headers, separator, data_model)?;
+        transient_data_resource.fill_missing_res_permission();
+        transient_data_resource.complete(row_nr)?;
         Ok(DataResource::new(transient_data_resource))
     }
 
@@ -66,7 +67,8 @@ impl DataResourceWrapper {
                 }
                 Header::Permissions => {
                     let value = &self.0.rows[pos.to_owned()].trim();
-                    transient_data_resource.add_resource_permissions(value.to_string())?
+                    let permissions = PermissionsWrapper(value.to_string()).to_permissions()?;
+                    transient_data_resource.add_resource_permissions(permissions)?
                 }
                 Header::ARK => {
                     let value = &self.0.rows[pos.to_owned()].trim();
@@ -99,67 +101,37 @@ impl DataResourceWrapper {
         Ok(())
     }
 
-    fn add_propnames_and_subheaders(&self, transient_data_resource: &mut TransientDataResource, headers: &DataHeader, separator: &String, data_model: &DataModel, row_nr: usize) -> Result<(), ExcelDataError> {
+    fn add_propnames_and_subheaders(&self, transient_data_resource: &mut TransientDataResource, headers: &DataHeader, separator: &String, data_model: &DataModel) -> Result<(), ExcelDataError> {
         for (propname, pos ) in headers.propname_to_pos.iter() {
-            let subheader = self.subheader(headers, propname, separator, data_model)?;
+            let subheader = self.subheader_value(headers, propname, separator, data_model)?;
             let raw_value = &self.0.rows[pos.to_owned()].trim();
+            if raw_value.is_empty() {
+                continue;
+            }
             let values = split_field(raw_value, separator);
             let value_field: DaschValueField = ValueFieldWrapper(values).to_dasch_value_field(data_model, propname, subheader)?;
             transient_data_resource.add_values_of_prop(propname, value_field);
         }
-        transient_data_resource.complete(row_nr)?;
         Ok(())
     }
 
-    fn subheader(&self, headers: &DataHeader, propname: &String, separator: &String, data_model: &DataModel) -> Result<Option<TransientSubheaderValues>, ExcelDataError> {
+    fn subheader_value(&self, headers: &DataHeader, propname: &String, separator: &String, data_model: &DataModel) -> Result<Option<SubheaderValues>, ExcelDataError> {
         match headers.propname_to_subheader.get(propname) {
             None => {
                 Ok(None)
             }
             Some(subheader) => {
-                let mut transient_subheader_value: TransientSubheaderValues = TransientSubheaderValues::new();
-                if subheader.permissions.is_some() {
-                    let raw_value = &self.0.rows[subheader.permissions.unwrap()].trim();
-                    let values = split_field(raw_value, separator);
-                    if !values.is_empty() {
-                        let mut permissions = vec![];
-                        for value in values {
-                            permissions.push(PermissionsWrapper(value).to_permissions()?);
-                        }
-                        transient_subheader_value.add_permissions(permissions);
-                    }
-                }
-                if subheader.encoding.is_some() {
-                    let raw_value = &self.0.rows[subheader.encoding.unwrap()].trim();
-                    let values = split_field(raw_value, separator);
-                    if !values.is_empty() {
-                        let mut encodings: Vec<Encoding> = vec![];
-                        for value in values {
-                            encodings.push(EncodingWrapper(value).to_encoding()?);
-                        }
-                        transient_subheader_value.add_encodings(encodings);
-                    }
-
-                }
-                if subheader.comment.is_some() {
-                    let raw_value = &self.0.rows[subheader.encoding.unwrap()].trim();
-                    let values = split_field(raw_value, separator);
-                    if !values.is_empty() {
-                        transient_subheader_value.add_comments(values);
-                    }
-                }
-                if !transient_subheader_value.is_empty() {
-                    let object = &data_model.properties.iter().find(|property|property.name.eq(propname)).unwrap().object;
-                    transient_subheader_value.values_ok(object, propname)?;
-                    return Ok(Some(transient_subheader_value));
-                }
-                Ok(None)
+                subheader_value(&self.0.rows,
+                                &subheader,
+                                separator,
+                                &data_model.properties.iter().find(|property| property.name.eq(propname)).unwrap(),
+                                propname)
             }
         }
     }
 }
 
-fn split_field(field: &&str, separator: &String) -> Vec<String> {
+pub fn split_field(field: &&str, separator: &String) -> Vec<String> {
     match field.contains(separator) {
         true => {
             field.split(separator).map(|splitter| splitter.to_string()).collect()
@@ -183,9 +155,6 @@ struct TransientDataResource {
 }
 
 impl TransientDataResource {
-}
-
-impl TransientDataResource {
     fn new() -> Self {
         TransientDataResource{
             id: None,
@@ -204,9 +173,13 @@ impl TransientDataResource {
     pub(crate) fn add_label(&mut self, label: String) {
         self.label = Option::from(label);
     }
-    pub(crate) fn add_resource_permissions(&mut self, permissions: String) -> Result<(), ExcelDataError>  {
-        self.res_permissions = Some(PermissionsWrapper(permissions).to_permissions()?);
+    pub(crate) fn add_resource_permissions(&mut self, permissions: Permissions) -> Result<(), ExcelDataError>  {
+        self.res_permissions = Some(permissions);
         Ok(())
+    }
+    pub(crate) fn fill_missing_res_permission(&mut self) {
+        // if res_permission does not exist in the header, we add Default here
+        self.res_permissions = Some(Permissions::DEFAULT)
     }
     pub(crate) fn add_iri(&mut self, iri: String) {
         if !iri.is_empty() {

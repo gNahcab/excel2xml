@@ -1,7 +1,7 @@
 mod write_xml;
 mod read_json;
 mod errors;
-mod json2datamodel;
+mod parse_dm;
 mod read_xlsx;
 mod parse_xlsx;
 mod parse_info;
@@ -9,13 +9,12 @@ mod read_hcl;
 mod special_propnames;
 mod extract;
 
-use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use dotenv::dotenv;
 use crate::errors::Excel2XmlError;
-use crate::json2datamodel::domain::data_model::DataModel;
+use crate::parse_dm::domain::data_model::DataModel;
 use parse_info::domain::parse_info::ParseInformation;
 use crate::read_json::get_file::read_from_json;
 use crate::read_hcl::get_file::read_hcl_body;
@@ -42,6 +41,12 @@ fn main() {
     let parse_info = parse_information_file(hcl_path, &data_model, &special_propnames).unwrap();
 
     //todo: refactor Sheet to DataResource with state pattern
+    //let data_containers_sp: Vec<DataContainerSP> = data_containers_sp(folder_path, &parse_info);
+    //data_containers_sp.iter().map(|data_container_sp| data_container_sp.prepare()
+    //data_containers_sp.iter().map(|data_container_sp| data_container_sp.edit(&parse_info)
+    //data_containers_sp.iter().map(|data_container_sp| data_container_sp.structure(&data_model,&parse_info.separator)
+    //data_containers_sp.iter().map(|data_container_sp| data_container_sp.write_xml()
+
     // import sheets
     let sheets: Vec<Sheet> = sheets(folder_path, &parse_info).unwrap();
     // prepare
@@ -54,7 +59,13 @@ fn main() {
         write_xml(data_container, &data_model).unwrap();
     }
 }
+/*
+fn data_containers_sp() -> Vec<DataContainerSP> {
+    //sheets
+    todo!()
+}
 
+ */
 
 fn data_containers(data_sheet: &Vec<DataSheet>, data_model: &DataModel, separator: &String) -> Result<Vec<DataContainer>, ExcelDataError> {
     let mut data_containers = vec![];

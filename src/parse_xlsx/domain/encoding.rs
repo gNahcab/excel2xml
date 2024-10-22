@@ -2,7 +2,7 @@ use std::fmt::Display;
 use crate::parse_xlsx::domain::encoding::Encoding::{UTF8, XML};
 use crate::parse_xlsx::errors::ExcelDataError;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Encoding {
     UTF8,
     XML

@@ -1,4 +1,3 @@
-use std::num::ParseIntError;
 use hcl::{BlockLabel, Expression};
 use crate::parse_info::domain::assignments::{Assignments, AssignmentsWrapper};
 use crate::parse_info::errors::HCLDataError;

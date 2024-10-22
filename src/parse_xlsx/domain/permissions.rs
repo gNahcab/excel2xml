@@ -1,8 +1,7 @@
 use std::fmt::Display;
-use crate::json2datamodel::domain::property::Property;
 use crate::parse_xlsx::errors::ExcelDataError;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Permissions {
     DEFAULT,
     RESTRICTED

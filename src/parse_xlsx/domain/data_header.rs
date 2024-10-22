@@ -1,10 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
-use crate::json2datamodel::domain::data_model::DataModel;
-use crate::json2datamodel::domain::property::Property;
-use crate::json2datamodel::domain::resource::DMResource;
+use crate::parse_dm::domain::data_model::DataModel;
+use crate::parse_dm::domain::property::Property;
+use crate::parse_dm::domain::resource::DMResource;
 use crate::parse_xlsx::domain::data_row::DataRow;
-use crate::parse_xlsx::domain::data_sheet::compare_header_to_data_model;
 use crate::parse_xlsx::domain::header::{Extractor, Header, HeaderWrapper};
 use crate::parse_xlsx::domain::subheader::{Subheader, TransientSubheader};
 use crate::parse_xlsx::errors::ExcelDataError;
@@ -92,12 +91,39 @@ impl DataHeaderWrapper {
             Some(dm_resource) => { dm_resource }
         };
         compare_header_to_data_model(res_name, &dm_model.resources, &pos_to_propname.values().collect(), pos_to_special_prop.values().find(|header| header == &&Header::Bitstream))?;
+        compare_header_to_res_prop(res_name, &pos_to_special_prop.values().collect())?;
         let mut transient_data_header = TransientDataHeader::new();
         add_propnames(&mut transient_data_header, &pos_to_propname, resource)?;
         add_props_of_res(&mut transient_data_header, &pos_to_special_prop)?;
         add_permissions_comment_encoding(&mut transient_data_header, &pos_to_special_prop, &pos_to_propname)?;
         Ok(DataHeader::new(transient_data_header))
     }
+}
+
+pub fn compare_header_to_data_model(res_name: &String, dm_resources: &Vec<DMResource>, prop_names: &Vec<&String>, bitstream: Option<&Header>) -> Result<(), ExcelDataError> {
+    let resource = match dm_resources.iter().find(|resource| resource.name.eq(res_name)) {
+        None => { return Err(ExcelDataError::ParsingError(format!("not found resource with name '{}' in data-model", res_name))) }
+        Some(dm_resource) => { dm_resource }
+    };
+    let propnames_xlsx: Vec<String> = prop_names.iter().map(|propname|propname.to_lowercase()).collect();
+    let missing_propnames:Vec<_> = resource.properties.iter().map(|property|property.propname.to_lowercase()).filter(|propname| !propnames_xlsx.contains(propname)).collect();
+
+    if missing_propnames.len() != 0 {
+        return Err(ExcelDataError::ParsingError(format!("not found all propnames in xlsx-headers. Missing propnames: {:?}, existing headers: {:?}", missing_propnames, prop_names)))
+    }
+
+    if resource.super_field.ends_with("Representation") && bitstream.is_none() {
+        return Err(ExcelDataError::ParsingError(format!("Resource is a 'Representation' but not found bitstream-header in xlsx-headers. Existing headers: {:?}", prop_names)))
+    }
+    Ok(())
+}
+fn compare_header_to_res_prop(res_name: &String, res_prop_values: &Vec<&Header>) -> Result<(), ExcelDataError> {
+    let should_have = [Header::ID, Header::Label];
+    let doesnt_have = should_have.iter().filter(|header| !res_prop_values.contains(header)).collect::<Vec<_>>();
+    if !doesnt_have.is_empty() {
+        return Err(ExcelDataError::ParsingError(format!("For resource '{}'cannot find: {:?} in header, but it is mandatory.", res_name, doesnt_have)));
+    }
+    Ok(())
 }
 
 fn add_permission_of_resource(transient_data_header:  &mut TransientDataHeader, pos_to_special_prop: &HashMap<usize, Header>) -> Result<(), ExcelDataError> {
@@ -130,7 +156,8 @@ fn add_permission_of_resource(transient_data_header:  &mut TransientDataHeader, 
         }
     }
     if permission.is_some() {
-        &transient_data_header.res_prop_to_pos.insert(permission.as_ref().unwrap().to_owned().0, permission.as_ref().unwrap().to_owned().1);
+        // no old key was present with no old value, so the output will be None
+        let _ = &transient_data_header.res_prop_to_pos.insert(permission.as_ref().unwrap().to_owned().0, permission.as_ref().unwrap().to_owned().1);
     }
     Ok(())
 }
@@ -184,7 +211,7 @@ fn add_props_of_res(mut transient_data_header: &mut TransientDataHeader, pos_to_
     Ok(())
 }
 pub(crate) fn add_permissions_of_res_bitstream(transient_header: &mut TransientDataHeader, pos_to_special_prop : &HashMap<usize, Header>) {
-    let (pos) = match pos_to_special_prop.iter().filter(|(pos, header)| matches!(header, Header::Bitstream)).collect::<Vec<(&usize, &Header)>>().first() {
+    let pos = match pos_to_special_prop.iter().filter(|(_, header)| matches!(header, Header::Bitstream)).collect::<Vec<(&usize, &Header)>>().first() {
         None => {
             // bitstream not found
             return;

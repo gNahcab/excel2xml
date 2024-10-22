@@ -1,12 +1,10 @@
-use std::cmp::PartialEq;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::vec;
-use crate::json2datamodel::domain::data_model::DataModel;
-use crate::json2datamodel::domain::resource::DMResource;
+use crate::parse_dm::domain::data_model::DataModel;
+use crate::parse_dm::domain::resource::DMResource;
 use crate::parse_info::domain::parse_info::ParseInformation;
+use crate::parse_info::domain::xlsx_sheet_info::SheetInfo;
 use crate::parse_xlsx::domain::data_row::DataRow;
-use crate::parse_xlsx::domain::header::{Extractor, Header};
-use crate::parse_xlsx::domain::header::Header::ProjectProp;
 use crate::parse_xlsx::domain::intermediate_sheet::IntermediateSheet;
 use crate::parse_xlsx::errors::ExcelDataError;
 use crate::special_propnames::SpecialPropnames;
@@ -85,11 +83,10 @@ impl TransientDataSheet {
 pub(crate) struct DataSheetWrapper(pub(crate) IntermediateSheet);
 
 impl DataSheetWrapper {
-    pub(crate) fn to_data_sheet(&self, parse_info: &ParseInformation) -> Result<DataSheet, ExcelDataError> {
+    pub(crate) fn to_data_sheet(&self, sheet_info: &SheetInfo) -> Result<DataSheet, ExcelDataError> {
         // this is where the changes requested in the parse-information file should be processed
         let mut transient_data_sheet =
             TransientDataSheet::new(self.0.res_name.to_owned());
-        let sheet_info = parse_info.rel_path_to_xlsx_workbooks.get(&self.0.rel_path).unwrap().sheet_infos.get(&self.0.sheet_info_nr).unwrap();
         let (old_headers, old_rows) = &self.0.data_rows.split_at(1);
         let manipulated_header_row: DataRow = manipulate_headers(old_headers.get(0).unwrap(), &sheet_info.assignments.header_to_propname);
         transient_data_sheet.add_headers(manipulated_header_row);
@@ -99,16 +96,13 @@ impl DataSheetWrapper {
     }
 }
 
-fn position_to_propnames(headers: DataRow) {
 
-}
-
-fn manipulate_headers(header: &DataRow, mut assignments: &HashMap<String, String>) -> DataRow {
+fn manipulate_headers(header: &DataRow, assignments: &HashMap<String, String>) -> DataRow {
     let mut new_header_row = DataRow::new();
     for old_header in header.rows.iter() {
         match assignments.get(old_header) {
-            Some(new_header) => { new_header_row.add_data(new_header.to_owned()) }
-            None => { new_header_row.add_data(old_header.to_owned()) }
+            Some(new_header) => { new_header_row.add_data(new_header.to_owned())}
+            None => {new_header_row.add_data(old_header.to_owned())}
         }
     }
     new_header_row
@@ -116,27 +110,11 @@ fn manipulate_headers(header: &DataRow, mut assignments: &HashMap<String, String
 pub fn data_sheets(sheets: Vec<IntermediateSheet>, parse_info: &ParseInformation) -> Result<Vec<DataSheet>, ExcelDataError> {
     let mut data_sheets = vec![];
     for sheet in sheets.iter() {
-        let data_sheet = DataSheetWrapper(sheet.to_owned()).to_data_sheet(&parse_info)?;
+        let sheet_info = parse_info.rel_path_to_xlsx_workbooks.get(&sheet.rel_path).unwrap().sheet_infos.get(&sheet.sheet_info_nr).unwrap();
+        let data_sheet = DataSheetWrapper(sheet.to_owned()).to_data_sheet(sheet_info)?;
         data_sheets.push(data_sheet);
     }
     Ok(data_sheets)
 }
 
 
-pub fn compare_header_to_data_model(res_name: &String, dm_resources: &Vec<DMResource>, prop_names: &Vec<&String>, bitstream: Option<&Header>) -> Result<(), ExcelDataError> {
-    let resource = match dm_resources.iter().find(|resource| resource.name.eq(res_name)) {
-        None => { return Err(ExcelDataError::ParsingError(format!("not found resource with name '{}' in data-model", res_name))) }
-        Some(dm_resource) => { dm_resource }
-    };
-    let propnames_xlsx: Vec<String> = prop_names.iter().map(|propname|propname.to_lowercase()).collect();
-    let missing_propnames:Vec<_> = resource.properties.iter().map(|property|property.propname.to_lowercase()).filter(|propname| !propnames_xlsx.contains(propname)).collect();
-
-    if missing_propnames.len() != 0 {
-        return Err(ExcelDataError::ParsingError(format!("not found all propnames in xlsx-headers. Missing propnames: {:?}, existing headers: {:?}", missing_propnames, prop_names)))
-    }
-
-    if resource.super_field.ends_with("Representation") && bitstream.is_none() {
-        return Err(ExcelDataError::ParsingError(format!("Resource is a 'Representation' but not found bitstream-header in xlsx-headers. Existing headers: {:?}", prop_names)))
-    }
-    Ok(())
-}

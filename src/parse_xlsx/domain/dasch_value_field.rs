@@ -1,13 +1,14 @@
 use std::ops::Index;
-use std::str::ParseBoolError;
-use rust_decimal::{Decimal, Error};
-use regex::{Captures, Regex};
-use crate::json2datamodel::domain::dasch_list::{DaSCHList, ListNode};
-use crate::json2datamodel::domain::data_model::DataModel;
-use crate::json2datamodel::domain::object::ValueObject;
-use crate::json2datamodel::domain::property::Property;
-use crate::parse_xlsx::domain::subheader_value::TransientSubheaderValues;
+use regex::Regex;
+use crate::parse_dm::domain::dasch_list::{DaSCHList, ListNode};
+use crate::parse_dm::domain::data_model::DataModel;
+use crate::parse_dm::domain::gui_element::GUIElement;
+use crate::parse_dm::domain::object::ValueObject;
+use crate::parse_dm::domain::property::Property;
+use crate::parse_xlsx::domain::subheader_value::{SubheaderValues};
 use crate::parse_xlsx::domain::dasch_value::DaschValue;
+use crate::parse_xlsx::domain::encoding::Encoding;
+use crate::parse_xlsx::domain::permissions::Permissions;
 use crate::parse_xlsx::errors::ExcelDataError;
 
 pub struct DaschValueField {
@@ -22,22 +23,56 @@ impl DaschValueField {
 
 pub struct ValueFieldWrapper(pub(crate) Vec<String>);
 impl ValueFieldWrapper {
-    pub(crate) fn to_dasch_value_field(&self, data_model: &DataModel, header: &String, subheader: Option<TransientSubheaderValues>) -> Result<DaschValueField, ExcelDataError> {
-        let curr_prop = match data_model.properties.iter().find(|property|property.name.eq(&header.to_owned())) {
+    pub(crate) fn to_dasch_value_field(&self, data_model: &DataModel, header: &String, subheader: Option<SubheaderValues>) -> Result<DaschValueField, ExcelDataError> {
+        let curr_prop = match data_model.properties.iter().find(|property| property.name.eq(&header.to_owned())) {
             None => {
                 // should never happen
-                return Err(ExcelDataError::InputError(format!("cannot find header '{}' in datamodel-properties: '{:?}'", header, data_model.properties)))
+                return Err(ExcelDataError::InputError(format!("cannot find header '{}' in datamodel-properties: '{:?}'", header, data_model.properties)));
             }
-            Some(curr_prop) => {curr_prop}
+            Some(curr_prop) => { curr_prop }
         };
+        self.check_values(curr_prop, data_model)?;
+        let subheader = match subheader {
+            None => {
+                self.default_subheader(curr_prop)
+            }
+            Some(subheader) => {
+                self.check_subheader(&subheader, curr_prop);
+                subheader
+            }
+        };
+        let dasch_values = self.dasch_values(subheader)?;
+        Ok(DaschValueField::new(dasch_values))
+    }
+    fn dasch_values(&self, subheader: SubheaderValues) -> Result<Vec<DaschValue>, ExcelDataError>{
+        self.sub_values_length_match(&subheader)?;
+        let mut dasch_values = vec![];
+        for (pos, value) in self.0.iter().enumerate() {
+            let permissions = subheader.permissions.index(pos);
+            let mut dasch_value = DaschValue::new(value.to_owned(), permissions.to_owned());
+            if subheader.encodings.is_some() {
+                let encoding = subheader.encodings.as_ref().unwrap().index(pos);
+                dasch_value.add_encoding(encoding.to_owned());
+            }
+            if subheader.comments.is_some() {
+                let comment = subheader.comments.as_ref().unwrap().index(pos);
+                if !comment.is_empty() {
+                    dasch_value.add_comment(comment.to_owned());
+                }
+            }
+            dasch_values.push(dasch_value);
+        }
+        Ok(dasch_values)
+    }
+    fn check_values(&self, curr_prop: &Property, data_model: &DataModel) -> Result<(), ExcelDataError> {
         match curr_prop.object {
             ValueObject::ListValue => {
                 let list: &DaSCHList = match
-                    data_model.lists.get(curr_prop.h_list.as_ref().unwrap()){
+                data_model.lists.get(curr_prop.h_list.as_ref().unwrap()) {
                     None => {
                         return Err(ExcelDataError::InputError(format!("cannot find hlist '{}' of property '{}' in lists of datamodel", &curr_prop.h_list.as_ref().unwrap(), curr_prop.name)));
                     }
-                    Some(list) => {list}
+                    Some(list) => { list }
                 };
                 correct_list_values(&self.0, list)?;
             }
@@ -57,9 +92,9 @@ impl ValueFieldWrapper {
                 // check if parsing is possible
                 for value in self.0.iter() {
                     let _ = match value.parse::<rust_decimal::Decimal>() {
-                        Ok(decimal) => {decimal}
+                        Ok(decimal) => { decimal }
                         Err(error) => {
-                            return Err(ExcelDataError::InputError(format!("cannot parse '{}' to decimal: {:?}",value, error)));
+                            return Err(ExcelDataError::InputError(format!("cannot parse '{}' to decimal: {:?}", value, error)));
                         }
                     };
                 }
@@ -84,9 +119,9 @@ impl ValueFieldWrapper {
                 }
                 let _: bool = match self.0.get(0).unwrap().trim().parse::<bool>()
                 {
-                    Ok(bool_val) => {bool_val}
+                    Ok(bool_val) => { bool_val }
                     Err(error) => {
-                        return Err(ExcelDataError::ParsingError(format!("cannot parse '{}' from string to bool. Error message: {}", self.0.get(0).unwrap(),error)));
+                        return Err(ExcelDataError::ParsingError(format!("cannot parse '{}' from string to bool. Error message: {}", self.0.get(0).unwrap(), error)));
                     }
                 };
             }
@@ -95,7 +130,7 @@ impl ValueFieldWrapper {
                 // 2021-11-30T12:00:00+00:00
                 let re = Regex::new(r"^\d{4}-\d{2}-\d{2}\D{1}\d{2}:\d{2}:\d{2}+\d{2}:\d{2}").unwrap();
                 for value in self.0.iter() {
-                    let _ = match  re.captures(value)  {
+                    let _ = match re.captures(value) {
                         None => {
                             return Err(ExcelDataError::ParsingError(format!("cannot parse '{}' to TimeValue", value)));
                         }
@@ -110,28 +145,65 @@ impl ValueFieldWrapper {
                 // we don't check if reslinkvalue exists
             }
         }
-        let mut dasch_values = vec![];
-        for (pos, value) in self.0.iter().enumerate() {
-            let mut dasch_value = DaschValue::new(value.to_owned());
-            if subheader.is_some() {
-                let subheader = &subheader.as_ref().unwrap();
-                if subheader.permissions.is_some() {
-                    let permission = subheader.permissions.as_ref().unwrap().index(pos);
-                    dasch_value.add_permission(permission.to_owned());
-                }
-                if subheader.encodings.is_some() {
-                    let encoding = subheader.encodings.as_ref().unwrap().index(pos);
-                    dasch_value.add_encoding(encoding.to_owned());
-                }
-                if subheader.comments.is_some() {
-                    let comment = subheader.comments.as_ref().unwrap().index(pos);
-                    dasch_value.add_comments(comment.to_owned());
+        Ok(())
+    }
+
+    fn default_subheader(&self, curr_prop: &Property) -> SubheaderValues {
+        let encodings = match curr_prop.object {
+            ValueObject::TextValue => {
+                match curr_prop.gui_element {
+                    GUIElement::RICHTEXT => {
+                        Some(self.0.iter().map(|_|Encoding::XML).collect())
+                    }
+                    GUIElement::SIMPLETEXT => {
+                        Some(self.0.iter().map(|_|Encoding::UTF8).collect())
+                    }
+                    _ => {
+                        panic!("shouldn't happen: Found GUIElement for TextValue I did not handle: {:?}", curr_prop.gui_element)
+                    }
                 }
             }
-            dasch_values.push(dasch_value);
+            _ => {
+                // no encoding needed
+                None
+            }
+        };
+        let permissions = self.0.iter().map(|_|Permissions::DEFAULT).collect();
+        SubheaderValues {
+            permissions,
+            encodings,
+            comments: None,
         }
-        Ok(DaschValueField::new(dasch_values))
     }
+
+    fn check_subheader(&self, subheader: &SubheaderValues, curr_prop: &Property) -> Result<(), ExcelDataError> {
+        // the number of permissions, encodings, comments (if the latter two exist)
+        // should match the number of values
+        todo!()
+    }
+
+    fn sub_values_length_match(&self, subheader_value: &SubheaderValues) -> Result<(), ExcelDataError> {
+        if self.0.len() != subheader_value.permissions.len() {
+            return Err(ExcelDataError::ParsingError(format!("Permissions and values have different length! Values: '{:?}', Permissions: '{:?}'", &self.0, subheader_value.permissions)))
+
+        }
+        if subheader_value.encodings.is_some() {
+            if self.0.len() != subheader_value.encodings.as_ref().unwrap().len() {
+                return Err(ExcelDataError::ParsingError(format!("Encodings and values have different length! Values: '{:?}', Encodings: '{:?}'", &self.0, subheader_value.encodings.as_ref().unwrap())))
+
+            }
+        }
+        if subheader_value.comments.is_some() {
+            if self.0.len() != subheader_value.comments.as_ref().unwrap().len() {
+                return Err(ExcelDataError::ParsingError(format!("Comments and values have different length! Values: '{:?}', Comments: '{:?}'", &self.0, subheader_value.comments.as_ref().unwrap())))
+            }
+        }
+        Ok(())
+    }
+}
+
+fn default_subheader() {
+    todo!()
 }
 
 fn correct_list_values(values: &Vec<String>, list: &DaSCHList) -> Result<(), ExcelDataError> {

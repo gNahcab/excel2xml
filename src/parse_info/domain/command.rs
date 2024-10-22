@@ -1,5 +1,4 @@
 use std::fmt::{Debug, Pointer};
-use hcl::format::Formatter;
 use hcl::TraversalOperator;
 use crate::parse_info::errors::HCLDataError;
 

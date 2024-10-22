@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use calamine::{Data, Range};
 use crate::errors::Excel2XmlError;
 use crate::extract::Extract;

@@ -1,4 +1,4 @@
-use crate::json2datamodel::domain::data_model::DataModel;
+use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_xlsx::domain::data_header::{DataHeader, DataHeaderWrapper};
 use crate::parse_xlsx::domain::data_resource::{DataResource, DataResourceWrapper};
 use crate::parse_xlsx::domain::data_sheet::DataSheet;
@@ -23,7 +23,7 @@ impl DataContainerWrapper {
         let data_header: DataHeader = DataHeaderWrapper(self.0.headers.to_owned()).to_data_header(&data_model, &self.0.res_name)?;
         let mut data_resources: Vec<DataResource> = vec![];
         for (nr, row) in self.0.data_rows.iter().enumerate() {
-            data_resources.push(DataResourceWrapper(row.to_owned()).to_data_resource(data_model, separator, &self.0.res_name, &data_header, nr)?);
+            data_resources.push(DataResourceWrapper(row.to_owned()).to_data_resource(data_model, separator, &data_header, nr)?);
         }
         Ok(DataContainer::new(data_header, data_resources, self.0.res_name.to_owned()))
     }

@@ -1,8 +1,7 @@
 use std::collections::{HashMap};
-use std::num::ParseIntError;
 use hcl::{Body, Expression};
-use crate::json2datamodel::domain::data_model::DataModel;
-use crate::json2datamodel::domain::resource::DMResource;
+use crate::parse_dm::domain::data_model::DataModel;
+use crate::parse_dm::domain::resource::DMResource;
 use crate::parse_info::domain::command::{ParseInfoCommandWrapper};
 use crate::parse_info::domain::command_path::CommandOrPath;
 use crate::parse_info::domain::xlsx_workbook::{XLSXWorbook, XLSXWorkbookWrapper};
@@ -30,9 +29,9 @@ impl ParseInformation {
                 if !names.contains(&&sheet_info.resource_name) {
                     return Err(HCLDataError::ParsingError(format!("cannot find resource-name '{}' in name of resources of datamodel: '{:?}'.",sheet_info.resource_name, names)));
                 }
-                let specific_dm_resource: &&&DMResource = dm_resources.iter().filter(|dmresource| dmresource.name == sheet_info.resource_name).collect::<Vec<&&DMResource>>().get(0).unwrap();
+                //let specific_dm_resource: &&&DMResource = dm_resources.iter().filter(|dmresource| dmresource.name == sheet_info.resource_name).collect::<Vec<&&DMResource>>().get(0).unwrap();
 
-                let prop_names: Vec<String> = sheet_info.assignments.header_to_propname.iter().map(|(header, propname)| propname.to_lowercase()).collect();
+                let prop_names: Vec<String> = sheet_info.assignments.header_to_propname.iter().map(|(_, propname)| propname.to_lowercase()).collect();
                 // 0. filter special propnames
                 let prop_names: Vec<&String> = prop_names.iter().filter(|prop_name| !(special_propnames.resource_header.contains(prop_name) && special_propnames.bitstream.contains(prop_name) && special_propnames.properties.contains(prop_name))).collect();
                 // 1. prop-names are part of properties

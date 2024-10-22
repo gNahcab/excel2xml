@@ -1,4 +1,3 @@
-use crate::parse_xlsx::domain::permissions::Permissions;
 use crate::parse_xlsx::errors::ExcelDataError;
 
 pub struct Subheader {
