@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use hcl::Expression;
-use crate::parse_info::domain::command::{ParseInfoCommand, ParseInfoCommandWrapper};
-use crate::parse_info::errors::HCLDataError;
-use crate::parse_info::wrapper_trait::Wrapper;
+use crate::hcl_info::domain::command::{ParseInfoCommand, ParseInfoCommandWrapper};
+use crate::hcl_info::errors::HCLDataError;
+use crate::hcl_info::header_value::{HeaderMethods, HeaderValue};
+use crate::hcl_info::wrapper_trait::Wrapper;
 
 pub struct Assignments {
-    pub header_to_propname: HashMap<String, String>,
+    pub header_to_propname: HashMap<String, HeaderValue>,
     find_rest: bool
 }
 
@@ -15,11 +16,8 @@ impl Assignments {
     }
 }
 struct TransientAssignments {
-    header_to_propname: HashMap<String, String>,
+    header_to_propname: HashMap<String, HeaderValue>,
     find_rest: Option<bool>
-}
-
-impl TransientAssignments {
 }
 
 impl TransientAssignments {
@@ -37,11 +35,11 @@ impl TransientAssignments {
         }
         Ok(())
     }
-     fn add_header_to_prop_name(&mut self, header: String, prop_name: String) -> Result<(), HCLDataError> {
+     fn add_header_to_prop_name(&mut self, header: String, header_value: HeaderValue) -> Result<(), HCLDataError> {
         if self.header_to_propname.contains_key(header.as_str()) {
             return Err(HCLDataError::ParsingError(format!("duplicate header '{}' found in assignments.", header)));
         }
-        self.header_to_propname.insert(header.to_string(), prop_name.to_string());
+        self.header_to_propname.insert(header.to_string(), header_value);
         Ok(())
     }
     fn complete(&mut self) {
@@ -61,9 +59,9 @@ impl AssignmentsWrapper {
             match attribute.key.as_str() {
                 "rest" => {
                     match &attribute.expr {
-                        Expression::String(prop_name) => {
+                        Expression::String(_) | Expression::Number(_)  => {
                             // this means a header of the xlsx is called "rest"
-                            transient_assignments.add_header_to_prop_name(attribute.key.to_string(), prop_name.to_owned())?;
+                            transient_assignments.add_header_to_prop_name(attribute.key.to_string(), attribute.expr.to_header_value()?)?;
                         }
                         // this means a command is given
                         Expression::Traversal(traversal) => {
@@ -71,20 +69,13 @@ impl AssignmentsWrapper {
                             transient_assignments.add_command(command)?;
                         }
                         _ => {
-                            return Err(HCLDataError::InputError(format!("only values of type String or Traversal are allowed in assignments with id 'rest', but found: '{:?}' with key: '{:?}'", attribute, attribute.key)));
+                            return Err(HCLDataError::InputError(format!("only values of type String, Number or Traversal are allowed in assignments with id 'rest', but found: '{:?}' with key: '{:?}'", attribute, attribute.key)));
                         }
                     }
                 }
                 _ => {
                     // normal header
-                    match &attribute.expr {
-                        Expression::String(prop_name) => {
-                            transient_assignments.add_header_to_prop_name(attribute.key.to_string(), prop_name.to_owned())?;
-                        }
-                        _ => {
-                            return Err(HCLDataError::InputError(format!("only values of type String are allowed in assignments (exception with 'rest'), but found: '{:?}' with key: '{:?}'", attribute, attribute.key)));
-                        }
-                    }
+                    transient_assignments.add_header_to_prop_name(attribute.key.to_string(), attribute.expr.to_header_value()?)?;
                 }
             }
 

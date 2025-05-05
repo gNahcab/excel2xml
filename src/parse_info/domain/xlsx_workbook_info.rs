@@ -1,20 +1,20 @@
 use std::collections::{HashMap, HashSet};
-use crate::parse_info::domain::xlsx_sheet_info::{SheetInfo, SheetInfoWrapper};
-use crate::parse_info::errors::HCLDataError;
-use crate::parse_info::wrapper_trait::Wrapper;
+use crate::hcl_info::domain::xlsx_sheet_info::{SheetInfo, SheetInfoWrapper};
+use crate::hcl_info::errors::HCLDataError;
+use crate::hcl_info::wrapper_trait::Wrapper;
 
-pub struct XLSXWorbook {
+pub struct XLSXWorbookInfo {
     pub rel_path:String,
     pub sheet_infos: HashMap<usize, SheetInfo>,
 }
 
-impl XLSXWorbook {
+impl XLSXWorbookInfo {
         fn new(transient_xlsxworkbook: TransientXLSXWorkbook) -> Self{
-            XLSXWorbook{ rel_path: transient_xlsxworkbook.rel_path, sheet_infos: transient_xlsxworkbook.sheet_infos}
+            XLSXWorbookInfo { rel_path: transient_xlsxworkbook.rel_path, sheet_infos: transient_xlsxworkbook.sheet_infos}
     }
 }
 
-pub(crate) struct XLSXWorkbookWrapper(pub(crate) hcl::Block);
+pub(crate) struct XLSXWorkbookInfoWrapper(pub(crate) hcl::Block);
 
 struct TransientXLSXWorkbook {
     rel_path: String,
@@ -51,8 +51,8 @@ impl TransientXLSXWorkbook {
 }
 
 
-impl XLSXWorkbookWrapper {
-    pub(crate) fn to_xlsx_workbook(&self) -> Result<XLSXWorbook, HCLDataError> {
+impl XLSXWorkbookInfoWrapper {
+    pub(crate) fn to_wb_info(&self) -> Result<XLSXWorbookInfo, HCLDataError> {
         let rel_path = self.0.get_single_label()?;
         let mut transient_xlsx_workbook = TransientXLSXWorkbook::new();
         transient_xlsx_workbook.add_rel_path(rel_path);
@@ -69,7 +69,7 @@ impl XLSXWorkbookWrapper {
                 } }
         }
         transient_xlsx_workbook.no_duplicate_res_names()?;
-       Ok(XLSXWorbook::new(transient_xlsx_workbook))
+       Ok(XLSXWorbookInfo::new(transient_xlsx_workbook))
     }
 }
 

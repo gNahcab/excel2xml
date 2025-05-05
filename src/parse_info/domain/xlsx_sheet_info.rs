@@ -1,12 +1,14 @@
 use hcl::{BlockLabel, Expression};
-use crate::parse_info::domain::assignments::{Assignments, AssignmentsWrapper};
-use crate::parse_info::errors::HCLDataError;
-use crate::parse_info::wrapper_trait::Wrapper;
+use crate::hcl_info::domain::assignments::{Assignments, AssignmentsWrapper};
+use crate::hcl_info::errors::HCLDataError;
+use crate::hcl_info::transformations::{Transformations, TransformationsWrapper};
+use crate::hcl_info::wrapper_trait::Wrapper;
 
 pub struct SheetInfo {
     pub sheet_nr: usize,
     pub resource_name: String,
-    pub assignments: Assignments
+    pub assignments: Assignments,
+    pub transformations: Option<Transformations>
 }
 impl SheetInfo {
     fn new(transient_sheet_info: TransientSheetInfo) -> Self {
@@ -14,6 +16,7 @@ impl SheetInfo {
             sheet_nr: transient_sheet_info.sheet_number,
             resource_name: transient_sheet_info.resource_name.unwrap(),
             assignments: transient_sheet_info.assignments.unwrap(),
+            transformations: transient_sheet_info.transformations
         }
     }
 }
@@ -21,7 +24,8 @@ impl SheetInfo {
 struct TransientSheetInfo {
     sheet_number: usize,
     resource_name: Option<String>,
-    assignments: Option<Assignments>
+    assignments: Option<Assignments>,
+    transformations: Option<Transformations>,
 }
 
 impl TransientSheetInfo {
@@ -30,6 +34,7 @@ impl TransientSheetInfo {
             sheet_number: sheet_nr,
             resource_name: None,
             assignments: None,
+            transformations: None,
         }
     }
     pub(crate) fn add_res_name(&mut self, res_name: String) -> Result<(), HCLDataError> {
@@ -44,6 +49,13 @@ impl TransientSheetInfo {
             return Err(HCLDataError::InputError(format!("multiple declaration of assignments in resource with name '{}' in sheet '{}'", self.resource_name.as_ref().unwrap(), self.sheet_number)));
         }
         self.assignments = Option::from(assignments);
+        Ok(())
+    }
+    pub(crate) fn add_transformations(&mut self, transformations: Transformations) -> Result<(), HCLDataError> {
+        if self.transformations.is_some() {
+            return Err(HCLDataError::InputError(format!("multiple transformations provided: First: '{:?}', Second: '{:?}'", self.transformations.as_ref().unwrap(), transformations)));
+        }
+        self.transformations = Option::Some(transformations);
         Ok(())
     }
     pub(crate) fn is_complete(&self) -> Result<(), HCLDataError> {
@@ -84,6 +96,10 @@ impl SheetInfoWrapper {
                 "assignments" => {
                     let assignments = AssignmentsWrapper(block.to_owned()).to_assignments()?;
                     transient_sheet_info.add_assignments(assignments)?;
+                }
+                "transform" => {
+                    let transformations = TransformationsWrapper(block.to_owned()).to_transformations()?;
+                    transient_sheet_info.add_transformations(transformations)?;
                 }
                 _ => {
                     return Err(HCLDataError::InputError(format!("found unknown block-identifier '{}' for attribute in sheet-info.", block.identifier.as_str())));
