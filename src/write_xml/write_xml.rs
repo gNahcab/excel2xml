@@ -32,9 +32,6 @@ pub fn write_xml(data_container: &DataContainer, data_model: &DataModel, parse_i
     let mut knora = XMLElement::new("knora");
     add_default_knora_attributes(&mut knora);
     add_shortcode_default_ontology_attributes(&mut knora, &data_model.shortcode.to_owned(), &data_model.shortname);
-    if parse_info.set_permissions {
-        add_default_permissions(&mut knora);
-    }
     let restype = ":".to_string() + data_container.res_name.as_str();
     for resource in data_container.resources.iter() {
         let mut xml_res = XMLElement::new("resource");
@@ -42,8 +39,8 @@ pub fn write_xml(data_container: &DataContainer, data_model: &DataModel, parse_i
         xml_res.add_attribute("id", &resource.id);
         xml_res.add_attribute("restype", &restype);
 
-        if parse_info.set_permissions {
-            xml_res.add_attribute("permissions", &resource.res_permissions);
+        if resource.res_permissions.is_some() {
+            xml_res.add_attribute("permissions", &resource.res_permissions.unwrap());
         }
         if resource.bitstream.is_some() {
             xml_res.add_child(bitstream_child(&resource));
@@ -56,10 +53,16 @@ pub fn write_xml(data_container: &DataContainer, data_model: &DataModel, parse_i
             prop_container.add_attribute("name", propname);
             for dasch_value in dasch_value_field.values.iter() {
                 let mut prop_value = XMLElement::new(&sub_xml_object);
+                /*
+
                 if parse_info.set_permissions {
                     // is necessary to avoid an xml file with unnecessary permissions
-                    prop_value.add_attribute("permissions", dasch_value.permission);
                 }
+                 */
+                if dasch_value.permission.is_some() {
+                    prop_value.add_attribute("permissions", dasch_value.permission.unwrap());
+                }
+
                 if dasch_value.comment.is_some() {
                     prop_value.add_attribute("comment", dasch_value.comment.as_ref().unwrap(), );
                 }

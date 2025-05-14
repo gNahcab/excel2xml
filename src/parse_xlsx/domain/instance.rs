@@ -4,6 +4,7 @@ use crate::parse_dm::domain::super_field::SuperField;
 use crate::parse_info::domain::prop_supplement::{PropSupplement};
 use crate::parse_info::domain::resource_supplement::{ResourceSupplement};
 use crate::parse_xlsx::domain::dasch_value_field::{DaschValueField, FieldsWrapper};
+use crate::parse_xlsx::domain::data_header::DataHeader;
 use crate::parse_xlsx::domain::data_row::DataRow;
 use crate::parse_xlsx::domain::header::Header;
 use crate::parse_xlsx::domain::permissions::{Permissions};
@@ -15,7 +16,7 @@ pub struct Instance {
     pub label: String,
     pub iri: Option<String>,
     pub ark: Option<String>,
-    pub res_permissions: Permissions,
+    pub res_permissions: Option<Permissions>,
     pub bitstream: Option<String>,
     pub bitstream_permissions: Option<Permissions>,
     pub dasch_value_fields:  Vec<DaschValueField>,
@@ -103,7 +104,7 @@ pub struct InstanceWrapper(pub(crate) DataRow);
 
 
 impl InstanceWrapper {
-    pub(crate) fn to_instance(&self, data_model: &&DataModel, separator: &String, row_nr_to_propname: &HashMap<usize, String>, row_nr_to_prop_suppl: &HashMap<usize, PropSupplement>, row_nr_to_res_suppl: &HashMap<usize, ResourceSupplement>, row_nr_to_id_label: &HashMap<usize, Header>, super_field: &SuperField) -> Result<Instance, ExcelDataError> {
+    pub(crate) fn to_instance(&self, data_model: &&DataModel, separator: &String, row_nr_to_propname: &HashMap<usize, String>, row_nr_to_prop_suppl: &HashMap<usize, PropSupplement>, row_nr_to_res_suppl: &HashMap<usize, ResourceSupplement>, row_nr_to_id_label: &HashMap<usize, Header>, super_field: &SuperField, set_permissions: bool) -> Result<Instance, ExcelDataError> {
         let mut transient_instance = TransientInstance::new();
         //transient_instance.add_resource_permissions(res_permissions);
         //let copyright_holder = extract_or_create_copyright_holder();
@@ -114,6 +115,7 @@ impl InstanceWrapper {
                 continue;
             }
             let entries: Vec<String> = entry.split(separator).map(|value|value.to_string()).collect();
+            entry_empty(&entries, row_nr)?;
             if row_nr_to_propname.contains_key(&row_nr) {
                 let header = row_nr_to_propname.get(&row_nr).unwrap();
                 transient_instance.add_values_of_prop(header, entries.to_owned())?;
@@ -137,17 +139,25 @@ impl InstanceWrapper {
                     Header::Label => {
                         transient_instance.add_label(entry.to_string())?;
                     }
-                    _ => {todo!("remove everything except id, label")}
                 }
             } else {
                 //ignore
             }
         }
         transient_instance.found_id_label()?;
-        let dasch_value_fields = FieldsWrapper(transient_instance.propname_to_values.to_owned(), transient_instance.prop_name_to_prop_suppl_values.to_owned()).to_dasch_value_fields(data_model)?;
-        let resource_data = to_resource_data(&transient_instance.res_suppl_values, super_field)?;
+        let dasch_value_fields = FieldsWrapper(transient_instance.propname_to_values.to_owned(), transient_instance.prop_name_to_prop_suppl_values.to_owned()).to_dasch_value_fields(data_model, set_permissions)?;
+        let resource_data = to_resource_data(&transient_instance.res_suppl_values, super_field, set_permissions)?;
         Ok(Instance::new(dasch_value_fields, resource_data, transient_instance.id.unwrap(), transient_instance.label.unwrap()))
     }
+}
+
+fn entry_empty(entries: &Vec<String>, nr: usize) -> Result<(), ExcelDataError> {
+    for entry in entries.iter() {
+        if entry.is_empty() {
+            return Err(ExcelDataError::InputError(format!("Instance: Found a empty entry in entries: {:?} in col-nr: {}", entries, nr)));
+        }
+    }
+    Ok(())
 }
 
 fn extract_or_create_copyright_holder() -> () {

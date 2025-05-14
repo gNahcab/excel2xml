@@ -5,10 +5,9 @@ use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::property::Property;
 use crate::parse_dm::domain::resource::DMResource;
 use crate::parse_info::domain::supplements::{Supplements};
-use crate::parse_info::domain::prop_supplement::{PropSupplType, PropSupplement};
+use crate::parse_info::domain::prop_supplement::PropSupplement;
 use crate::parse_info::domain::resource_supplement::{ResourceSupplType, ResourceSupplement};
 use crate::parse_xlsx::domain::header::Header;
-use crate::parse_xlsx::domain::subheader::Subheader;
 use crate::parse_xlsx::domain::transient_data_header::TransientDataHeader;
 use crate::parse_xlsx::errors::ExcelDataError;
 
@@ -21,7 +20,6 @@ pub struct DataHeader {
     pub bitstream_permissions: Option<usize>,
     pub propname_to_pos: HashMap<String, usize>,
     pub(crate) propname_to_pos_prop_supplement: HashMap<String, Vec<(usize, PropSupplement)>>,
-    //res_prop_to_pos: HashMap<Header, usize>,
 }
 
 pub(crate) struct DataHeaderWrapper(pub(crate) HashMap<String, usize>);

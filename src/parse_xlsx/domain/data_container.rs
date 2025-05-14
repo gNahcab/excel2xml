@@ -45,7 +45,7 @@ impl DataContainerWrapper {
         let super_field = &data_model.resources.iter().find(|dm_res|dm_res.name.eq(&self.0.res_name)).unwrap().super_field;
         let data_header = DataHeaderWrapper(self.0.header_to_col_nr.to_owned()).to_data_header(&data_model, &self.0.res_name, &row_nr_to_propname, &row_nr_to_prop_suppl, &row_nr_to_res_suppl, &row_nr_to_id_label)?;
         for row in rows.iter() {
-            data_instances.push(InstanceWrapper(row.to_owned()).to_instance(&data_model, &parse_info.separator, &row_nr_to_propname, &row_nr_to_prop_suppl, &row_nr_to_res_suppl, &row_nr_to_id_label, super_field)?);
+            data_instances.push(InstanceWrapper(row.to_owned()).to_instance(&data_model, &parse_info.separator, &row_nr_to_propname, &row_nr_to_prop_suppl, &row_nr_to_res_suppl, &row_nr_to_id_label, super_field, parse_info.set_permissions)?);
         }
         Ok(DataContainer::new(data_header, data_instances, self.0.res_name.to_owned()))
     }

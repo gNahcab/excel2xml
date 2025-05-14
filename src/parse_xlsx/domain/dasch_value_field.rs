@@ -124,7 +124,7 @@ struct DaschValueFieldWrapper( Vec<String>);
 
 
 impl DaschValueFieldWrapper {
-    fn to_dasch_value_field(&self, prop_name: &String, maybe_suppl_value: Option<&TransientSupplementValueField>, data_model: &DataModel) -> Result<DaschValueField, ExcelDataError> {
+    fn to_dasch_value_field(&self, prop_name: &String, maybe_suppl_value: Option<&TransientSupplementValueField>, data_model: &DataModel, set_permissions: bool) -> Result<DaschValueField, ExcelDataError> {
         let curr_prop = match data_model.properties.iter().find(|property| property.name.eq(&prop_name.to_owned())) {
             None => {
                 // should never happen
@@ -135,7 +135,7 @@ impl DaschValueFieldWrapper {
         self.check_values(curr_prop, data_model)?;
         let mut dasch_values = vec![];
         for (pos, value) in self.0.iter().enumerate() {
-            let dasch_value = WrapperDaschValue(value.to_owned()).to_dasch_value(pos, maybe_suppl_value, &curr_prop.object)?;
+            let dasch_value = WrapperDaschValue(value.to_owned()).to_dasch_value(pos, maybe_suppl_value, &curr_prop.object, set_permissions)?;
             dasch_values.push(dasch_value);
         }
         Ok(DaschValueField::new(dasch_values, prop_name.to_owned()))
@@ -227,7 +227,7 @@ impl DaschValueFieldWrapper {
 }
 impl FieldsWrapper {
 
-    pub(crate) fn to_dasch_value_fields(&self, data_model: &DataModel) -> Result<Vec<DaschValueField>, ExcelDataError> {
+    pub(crate) fn to_dasch_value_fields(&self, data_model: &DataModel, set_permissions: bool) -> Result<Vec<DaschValueField>, ExcelDataError> {
         let mut dasch_value_fields: Vec<DaschValueField> = vec![];
         let mut prop_name_to_transient_suppl_value = HashMap::new();
         for (prop_name, prop_suppl_values) in self.1.iter() {
@@ -242,7 +242,7 @@ impl FieldsWrapper {
         }
         for (prop_name, values) in self.0.iter() {
             let maybe_suppl_value =  prop_name_to_transient_suppl_value.get(prop_name);
-            let dasch_value_field = DaschValueFieldWrapper(values.to_vec()).to_dasch_value_field(prop_name, maybe_suppl_value, data_model)?;
+            let dasch_value_field = DaschValueFieldWrapper(values.to_vec()).to_dasch_value_field(prop_name, maybe_suppl_value, data_model, set_permissions)?;
             dasch_value_fields.push(dasch_value_field);
         }
         Ok(dasch_value_fields)

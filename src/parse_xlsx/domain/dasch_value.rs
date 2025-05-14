@@ -15,7 +15,7 @@ pub struct TransientDaschValue {
 #[derive(Clone, Debug)]
 pub struct DaschValue {
     pub value: String,
-    pub permission: Permissions,
+    pub permission: Option<Permissions>,
     pub encoding: Option<Encoding>,
     pub comment: Option<String>,
 }
@@ -23,7 +23,7 @@ impl DaschValue {
     pub(crate) fn new(transient_dasch_value: TransientDaschValue) -> Self {
         Self{
             value: transient_dasch_value.value,
-            permission: transient_dasch_value.permission.unwrap(),
+            permission: transient_dasch_value.permission,
             encoding: transient_dasch_value.encoding,
             comment: transient_dasch_value.comment,
         }
@@ -48,11 +48,14 @@ impl TransientDaschValue {
     pub(crate) fn add_permissions(&mut self, permission: Permissions) {
         self.permission = Some(permission);
     }
-    pub(crate) fn complete(&mut self, object: &ValueObject) -> Result<(), ExcelDataError> {
+    pub(crate) fn complete(&mut self, object: &ValueObject, set_permissions: bool) -> Result<(), ExcelDataError> {
         if self.permission.is_none() {
+            if set_permissions {
+                // set default
+                self.permission = Some(Permissions::DEFAULT);
+            }
             //return Err(ExcelDataError::InputError(format!("Permissions of DaschValue '{}' is None.", self.value)))
-            // set default
-            self.permission = Some(Permissions::DEFAULT);
+
         }
         match object {
             ValueObject::TextValue => {
@@ -70,7 +73,7 @@ impl TransientDaschValue {
 
 pub struct WrapperDaschValue(pub String);
 impl WrapperDaschValue {
-    pub(crate) fn to_dasch_value(&self, pos: usize, maybe_suppl_value: Option<&TransientSupplementValueField>, object: &ValueObject) -> Result<DaschValue, ExcelDataError> {
+    pub(crate) fn to_dasch_value(&self, pos: usize, maybe_suppl_value: Option<&TransientSupplementValueField>, object: &ValueObject, set_permissions: bool) -> Result<DaschValue, ExcelDataError> {
         let mut transient_dasch_value = TransientDaschValue::new(self.0.to_owned());
         if maybe_suppl_value.is_some() {
             if maybe_suppl_value.as_ref().unwrap().encoding.is_some() {
@@ -101,7 +104,7 @@ impl WrapperDaschValue {
                 transient_dasch_value.add_permissions(permissions.to_owned());
             }
         }
-        transient_dasch_value.complete(object)?;
+        transient_dasch_value.complete(object, set_permissions)?;
         Ok(DaschValue::new(transient_dasch_value))
     }
 }

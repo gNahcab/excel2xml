@@ -6,7 +6,7 @@ use crate::parse_xlsx::errors::ExcelDataError;
 pub struct ResourceSupplData {
     pub iri: Option<String>,
     pub ark: Option<String>,
-    pub res_permissions: Permissions,
+    pub res_permissions: Option<Permissions>,
     pub bitstream: Option<String>,
     pub bitstream_permissions: Option<Permissions>,
 }
@@ -16,7 +16,7 @@ impl ResourceSupplData {
         ResourceSupplData {
             iri: transient_resource_data.iri,
             ark: transient_resource_data.ark,
-            res_permissions: transient_resource_data.res_permissions.unwrap(),
+            res_permissions: transient_resource_data.res_permissions,
             bitstream: transient_resource_data.bitstream,
             bitstream_permissions: transient_resource_data.bitstream_permissions,
         }
@@ -41,9 +41,12 @@ impl TransientResourceData {
             bitstream_permissions: None,
         }
     }
-    pub(crate) fn is_complete(&self, super_field: &SuperField) -> Result<(), ExcelDataError> {
+    pub(crate) fn complete(&mut self, super_field: &SuperField, set_permissions: bool) -> Result<(), ExcelDataError> {
         if self.res_permissions.is_none() {
-            return Err(ExcelDataError::InputError(format!("Cannot find resource-permissions in resource '{:?}'", self)));
+            if set_permissions {
+                self.res_permissions = Some(Permissions::DEFAULT);
+            }
+            //return Err(ExcelDataError::InputError(format!("Cannot find resource-permissions in resource '{:?}'", self)));
         }
         match super_field {
             SuperField::Resource => {
@@ -100,7 +103,7 @@ impl TransientResourceData {
     }
 
 }
-pub fn to_resource_data(res_suppl_values: &Vec<(ResourceSupplement, String)>, super_field: &SuperField) -> Result<ResourceSupplData, ExcelDataError> {
+pub fn to_resource_data(res_suppl_values: &Vec<(ResourceSupplement, String)>, super_field: &SuperField, set_permissions: bool) -> Result<ResourceSupplData, ExcelDataError> {
     let mut transient_resource_suppl = TransientResourceData::new();
     for (res_suppl, value) in res_suppl_values {
         match res_suppl.suppl_type {
@@ -123,6 +126,6 @@ pub fn to_resource_data(res_suppl_values: &Vec<(ResourceSupplement, String)>, su
             }
         }
     }
-    transient_resource_suppl.is_complete(super_field)?;
+    transient_resource_suppl.complete(super_field, set_permissions)?;
     Ok(ResourceSupplData::new(transient_resource_suppl))
 }
