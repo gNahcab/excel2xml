@@ -5,3 +5,6 @@ pub(crate) mod assignments;
 pub(crate) mod command;
 pub(crate) mod command_path;
 pub mod parse_info;
+pub mod supplements;
+pub mod prop_supplement;
+pub mod resource_supplement;

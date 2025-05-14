@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
-use crate::hcl_info::domain::xlsx_sheet_info::{SheetInfo, SheetInfoWrapper};
-use crate::hcl_info::errors::HCLDataError;
-use crate::hcl_info::wrapper_trait::Wrapper;
+use crate::parse_info::domain::xlsx_sheet_info::{SheetInfo, SheetInfoWrapper};
+use crate::parse_info::errors::HCLDataError;
+use crate::parse_info::wrapper_trait::Wrapper;
 
 pub struct XLSXWorbookInfo {
     pub rel_path:String,
@@ -19,9 +19,6 @@ pub(crate) struct XLSXWorkbookInfoWrapper(pub(crate) hcl::Block);
 struct TransientXLSXWorkbook {
     rel_path: String,
     sheet_infos: HashMap<usize, SheetInfo>,
-}
-
-impl TransientXLSXWorkbook {
 }
 
 impl TransientXLSXWorkbook {

@@ -19,4 +19,5 @@ pub trait Builder {
 
     fn build(self) -> DataModel;
     fn add_shortcode(&mut self, shortcode: String);
+    fn add_shortname(&mut self, shortname: String);
 }

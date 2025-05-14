@@ -19,7 +19,7 @@ impl Wrapper for Block  {
         if self.labels.len() > 1 {
             return Err(HCLDataError::ParsingError(format!("this method should have one label but has more than one: '{:?}'", self.labels)));
         }
-        return Ok(self.labels.get(0).unwrap().as_str().to_string());
+        Ok(self.labels.get(0).unwrap().as_str().trim().to_string())
     }
     fn no_blocks(&self) -> Result<(), HCLDataError> {
         // check that no block exists within this method-block
@@ -54,6 +54,6 @@ impl Wrapper for Block  {
         if labels.len() != 2 {
             return Err(HCLDataError::ParsingError(format!("this method should have two labels but has more than two: '{:?}'", labels)));
         }
-        Ok((labels.get(0).unwrap().as_str().to_string(), labels.get(1).unwrap().as_str().to_string()))
+        Ok((labels.get(0).unwrap().as_str().trim().to_string(), labels.get(1).unwrap().as_str().trim().to_string()))
     }
 }

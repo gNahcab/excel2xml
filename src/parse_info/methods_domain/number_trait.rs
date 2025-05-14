@@ -1,5 +1,5 @@
 use hcl::Number;
-use crate::hcl_info::errors::HCLDataError;
+use crate::parse_info::errors::HCLDataError;
 
 pub trait NumberTrait {
     fn as_usize(&self) -> Result<usize, HCLDataError>;

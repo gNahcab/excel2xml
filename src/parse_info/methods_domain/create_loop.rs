@@ -1,9 +1,9 @@
 use std::fmt::format;
 use hcl::{BlockLabel, Expression};
-use crate::hcl_info::errors::HCLDataError;
-use crate::hcl_info::methods_domain::number_trait::NumberTrait;
-use crate::hcl_info::methods_domain::step::{Step, WrapperStep};
-use crate::hcl_info::methods_domain::wrapper_trait::Wrapper;
+use crate::parse_info::errors::HCLDataError;
+use crate::parse_info::methods_domain::number_trait::NumberTrait;
+use crate::parse_info::methods_domain::step::{Step, WrapperStep};
+use crate::parse_info::methods_domain::wrapper_trait_block::Wrapper;
 
 #[derive(Debug, Clone)]
 pub enum Create {

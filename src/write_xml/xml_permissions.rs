@@ -83,14 +83,8 @@ fn allow(group: &str, value: &str) -> XMLElement {
     group_allow.add_text(value);
     group_allow
 }
-fn default_xml_header() -> XMLElement  {
+pub fn add_default_permissions(knora: &mut XMLElement) {
     /*
-     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xmlns="https://dasch.swiss/schema"
-        xsi:schemaLocation="https://dasch.swiss/schema https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/src/dsp_tools/resources/schema/data.xsd"
-        shortcode="082E"
-        default-ontology="rosetta">
-
         <!-- :permissions see https://docs.dasch.swiss/latest/DSP-API/05-internals/design/api-admin/administration/#permissions -->
         <permissions id="res-default">
             <allow group="UnknownUser">V</allow>
@@ -113,5 +107,8 @@ fn default_xml_header() -> XMLElement  {
             <allow group="ProjectAdmin">D</allow>
         </permissions>
      */
-    todo!()
+    knora.add_child(res_default());
+    knora.add_child(res_restricted());
+    knora.add_child(prop_default());
+    knora.add_child(prop_restricted());
 }

@@ -1,5 +1,5 @@
 use hcl::{Attribute, Block};
-use crate::hcl_info::errors::HCLDataError;
+use crate::parse_info::errors::HCLDataError;
 
 pub trait Wrapper {
     fn get_single_label(&self) -> Result<String, HCLDataError>;

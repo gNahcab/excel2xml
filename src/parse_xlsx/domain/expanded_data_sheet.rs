@@ -2,12 +2,13 @@ use std::collections::HashMap;
 use std::vec;
 use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::resource::DMResource;
+use crate::parse_info::domain::assignments::Assignments;
 use crate::parse_info::domain::parse_info::ParseInformation;
 use crate::parse_info::domain::xlsx_sheet_info::SheetInfo;
 use crate::parse_info::errors::HCLDataError;
 use crate::parse_info::header_value::HeaderValue;
-use crate::parse_info::methods_domain::create_method::CreateMethod;
-use crate::parse_xlsx::domain::data_column::DataColumn;
+use crate::parse_xlsx::domain::data_col::DataCol;
+use crate::parse_xlsx::domain::data_column_old::DataColumn;
 use crate::parse_xlsx::domain::data_row::DataRow;
 use crate::parse_xlsx::domain::intermediate_sheet::IntermediateSheet;
 use crate::parse_xlsx::domain::manipulations::{perform_combine, perform_create, perform_lower, perform_replace, perform_to_date, perform_upper};
@@ -15,23 +16,19 @@ use crate::parse_xlsx::errors::ExcelDataError;
 use crate::special_propnames::SpecialPropnames;
 
 #[derive(Clone)]
-pub struct  {
+pub struct ExpandedDataSheet {
     pub res_name: String,
-    pub headers_xlsx: DataRow,
-    pub headers_created: DataRow,
-    pub data_rows: Vec<DataRow>,
-    pub created_data_rows: Vec<DataRow>,
+    pub col_nr_to_cols: HashMap<usize, DataCol>,
+    pub header_to_col_nr: HashMap<String, usize>
 }
 
 
-impl  {
-    fn new(res_name: String, headers: DataRow, data_rows: Vec<DataRow>, created_headers: DataRow, created_data_rows: Vec<DataRow>) -> Self {
-         {
+impl ExpandedDataSheet {
+    fn new(res_name: String, col_nr_to_cols: HashMap<usize, DataCol>, header_to_col_nr: HashMap<String, usize>) -> Self {
+        ExpandedDataSheet {
             res_name,
-            headers_xlsx: headers,
-            headers_created: created_headers,
-            data_rows,
-            created_data_rows,
+            col_nr_to_cols,
+            header_to_col_nr
         }
     }
 }
@@ -74,19 +71,53 @@ impl TransientDataSheet {
         todo!()
     }
 }
-pub(crate) struct DataSheetWrapper(pub(crate) IntermediateSheet);
+pub(crate) struct ExpandedDataSheetWrapper(pub(crate) IntermediateSheet);
 
-impl DataSheetWrapper {
-    pub(crate) fn to_data_sheet(&self, sheet_info: &SheetInfo) -> Result<, HCLDataError> {
+impl ExpandedDataSheetWrapper {
+    pub(crate) fn to_expanded_data_sheet(&self, sheet_info: &SheetInfo) -> Result<ExpandedDataSheet, HCLDataError> {
         // this is where the changes requested in the parse-information file should be processed
-        let (headers, old_rows) = &self.0.data_rows.split_at(1);
-        let headers = &headers[0];
-        let columns = rows_to_columns(old_rows);
-        let (created_headers, created_columns) = create_data(&columns, headers, sheet_info)?;
-        let rows = columns_to_rows(columns);
-        let created_rows = columns_to_rows(created_columns);
-        Ok(::new(sheet_info.resource_name.to_owned(), headers.to_owned(), rows, created_headers, created_rows))
+        let header_to_col_nr = header_to_col_nr(&sheet_info.assignments, &self.0.col_nr_to_data_cols)?;
+        let (col_nr_to_cols, header_to_col_nr) = match sheet_info.transformations {
+            None => {
+                (self.0.col_nr_to_data_cols.to_owned(), header_to_col_nr)
+            }
+            Some(_) => {
+                create_data(self.0.col_nr_to_data_cols.to_owned(), header_to_col_nr, sheet_info)?
+            }
+        };
+        Ok(ExpandedDataSheet::new(sheet_info.resource_name.to_owned(), col_nr_to_cols, header_to_col_nr))
     }
+}
+
+fn header_to_col_nr(assignments: &Assignments, col_nr_to_data_col: &HashMap<usize, DataCol>) -> Result<HashMap<String, usize>, HCLDataError> {
+    // here we link all headers to their col-nr
+    // don't replace or remove 'old' headers here, filter later
+    let mut header_to_col_nr:HashMap<String, usize> = col_nr_to_data_col.iter().map(|(col_id, data_col)|(data_col.head.to_owned(), col_id.to_owned())).collect();
+
+    for (new_header, old_header_token) in assignments.header_to_propname.iter() {
+            match old_header_token {
+                HeaderValue::Name(old_name) => {
+                    match header_to_col_nr.get(old_name) {
+                        None => {
+                            return Err(HCLDataError::ParsingError(format!("Header '{}' does not exist in data. Existing headers: {:?}",old_name, header_to_col_nr.iter().map(|(header, _)| header.to_owned()).collect::<Vec<_>>())));
+                        }
+                        Some(number) => {
+                            header_to_col_nr.insert(new_header.to_owned(), number.to_owned());
+                        }
+                    }
+                }
+                HeaderValue::Number(col_number) => {
+                    let number = col_number.to_owned() as usize;
+                    if col_nr_to_data_col.contains_key(&number) {
+                            header_to_col_nr.insert(new_header.to_owned(), number.to_owned());
+                    } else {
+                            return Err(HCLDataError::ParsingError(format!("Number {} is not an index number in headers. Probably out of bounds, length of headers: {}", number, col_nr_to_data_col.len())));
+                    }
+                }
+            }
+        }
+
+    Ok(header_to_col_nr)
 }
 
 fn columns_to_rows(columns: Vec<DataColumn>) -> Vec<DataRow> {
@@ -102,64 +133,55 @@ fn columns_to_rows(columns: Vec<DataColumn>) -> Vec<DataRow> {
     data_rows
 }
 
-fn rows_to_columns(old_rows: &&[DataRow]) -> Vec<DataColumn> {
-    let mut columns: Vec<DataColumn> = vec![];
-    // it is supposed that every row has the same length
-    for _ in 0..old_rows[0].row.len() {
-        let column =  DataColumn::new();
-        &columns.push(column);
-    }
-    for data_row in old_rows.iter() {
-        // open row
-        for col_nr in 0..old_rows[0].row.len() {
-            // add every column to the respective column vec
-            columns[col_nr].column.push(data_row.row[col_nr].to_owned());
-        }
-    }
-    columns
-}
 
-fn create_data(data_columns: &Vec<DataColumn>, header: &DataRow, sheet_info: &SheetInfo) -> Result<(DataRow, Vec<DataColumn>), HCLDataError> {
-    if sheet_info.transformations.is_none() {
-        return Ok((DataRow::new(), vec![]));
-    }
-    let mut additional_columns = vec![];
-    let mut additional_headers = DataRow::new();
+fn create_data(mut col_nr_to_cols_expanded: HashMap<usize, DataCol>, mut header_to_col_nr_expanded: HashMap<String, usize>, sheet_info: &SheetInfo) -> Result<(HashMap<usize, DataCol>, HashMap<String, usize>), HCLDataError> {
     let transformations = sheet_info.transformations.as_ref().unwrap();
     for replace_method in &transformations.replace_methods {
-        perform_replace(replace_method, &mut additional_columns, &mut additional_headers, header, data_columns)?
+        let data_col = perform_replace(replace_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded)?;
+        add_to_header_cols(&mut header_to_col_nr_expanded, &mut col_nr_to_cols_expanded, data_col);
     }
     for lower_method in &transformations.lower_methods {
-        let data_col = perform_lower(lower_method, header, data_columns)?;
-        additional_columns.push(data_col);
-        additional_headers.row.push(lower_method.output.to_owned());
+        let data_col = perform_lower(lower_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded)?;
+        add_to_header_cols(&mut header_to_col_nr_expanded, &mut col_nr_to_cols_expanded, data_col);
 
     }
     for upper_method in &transformations.upper_methods {
-        let data_col = perform_upper(upper_method,  header, data_columns)?;
-        additional_columns.push(data_col);
-        additional_headers.row.push(upper_method.output.to_owned());
+        let data_col = perform_upper(upper_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded)?;
+        add_to_header_cols(&mut header_to_col_nr_expanded, &mut col_nr_to_cols_expanded, data_col);
 
     }
     for combine_method in &transformations.combine_methods {
-        let data_col = perform_combine(combine_method, header, data_columns)?;
-        additional_columns.push(data_col);
-        additional_headers.row.push(combine_method.output.to_owned());
+        let data_col = perform_combine(combine_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded)?;
+        add_to_header_cols(&mut header_to_col_nr_expanded, &mut col_nr_to_cols_expanded, data_col);
 
     }
     for to_date_method in &transformations.to_date_methods {
-        let data_col = perform_to_date(to_date_method, header, data_columns)?;
-        additional_columns.push(data_col);
-        additional_headers.row.push(to_date_method.output.to_owned());
+        let data_col = perform_to_date(to_date_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded)?;
+        add_to_header_cols(&mut header_to_col_nr_expanded, &mut col_nr_to_cols_expanded, data_col);
+    }
+    // infer length for create method
+    let mut length = 0usize;
+    if !transformations.create_methods.is_empty() {
+        length = match col_nr_to_cols_expanded.get(&0usize) {
+            None => {
+                return Err(HCLDataError::ParsingError("Create-methods: No other columns exist, so I cannot infer the length of the column that should be created.".to_string()))
+            }
+            Some(data_col) => {data_col.col.len()}
+        };
     }
     for create_method in &transformations.create_methods {
-        let data_col = perform_create(create_method, data_columns);
-        additional_columns.push(data_col);
-        additional_headers.row.push(create_method.output.to_owned());
+        let data_col = perform_create(create_method, length);
+        add_to_header_cols(&mut header_to_col_nr_expanded, &mut col_nr_to_cols_expanded, data_col);
     }
-    Ok((additional_headers, additional_columns))
+    Ok((col_nr_to_cols_expanded, header_to_col_nr_expanded))
 }
 
+pub fn add_to_header_cols(header_to_col_nr_expanded: &mut HashMap<String, usize>, col_nr_to_cols_expanded: &mut HashMap<usize, DataCol>, data_col_to_add: DataCol) {
+    // the next id is the length of the col_nr_to_cols_expanded/col_nr_to_cols_expanded
+    let id_ = col_nr_to_cols_expanded.len();
+    header_to_col_nr_expanded.insert(data_col_to_add.head.to_owned(), id_);
+    col_nr_to_cols_expanded.insert(id_, data_col_to_add);
+}
 
 fn assign_headers(raw_headers: &DataRow, assignments: &HashMap<String, HeaderValue>) -> Result<DataRow, HCLDataError> {
     let mut old_string_to_new_string: HashMap<String, String> = HashMap::new();
@@ -192,14 +214,14 @@ fn assign_headers(raw_headers: &DataRow, assignments: &HashMap<String, HeaderVal
     Ok(data_row)
 }
 
-pub fn data_sheets(sheets: Vec<IntermediateSheet>, parse_info: &ParseInformation) -> Result<Vec<>, HCLDataError> {
-    let mut data_sheets = vec![];
+pub fn expanded_data_sheets(sheets: Vec<IntermediateSheet>, parse_info: &ParseInformation) -> Result<Vec<ExpandedDataSheet>, HCLDataError> {
+    let mut expanded_data_sheets = vec![];
     for sheet in sheets.iter() {
         let sheet_info = parse_info.rel_path_to_xlsx_workbooks.get(&sheet.rel_path).unwrap().sheet_infos.get(&sheet.sheet_info_nr).unwrap();
-        let data_sheet = DataSheetWrapper(sheet.to_owned()).to_data_sheet(sheet_info)?;
-        data_sheets.push(data_sheet);
+        let expanded_data_sheet = ExpandedDataSheetWrapper(sheet.to_owned()).to_expanded_data_sheet(sheet_info)?;
+        expanded_data_sheets.push(expanded_data_sheet);
     }
-    Ok(data_sheets)
+    Ok(expanded_data_sheets)
 }
 
 

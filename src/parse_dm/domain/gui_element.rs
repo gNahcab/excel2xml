@@ -6,7 +6,9 @@ pub enum  GUIElement {
     SIMPLETEXT,
     LIST,
     DATE,
-    SEARCHBOX
+    SEARCHBOX,
+    GEONAMES,
+    TEXTAREA,
 }
 
 pub fn to_gui_element(gui_element: &String) -> Result<GUIElement, DataModelError> {
@@ -16,7 +18,8 @@ pub fn to_gui_element(gui_element: &String) -> Result<GUIElement, DataModelError
         "list" => {Ok(GUIElement::LIST)}
         "date" => {Ok(GUIElement::DATE)}
         "searchbox" => {Ok(GUIElement::SEARCHBOX)}
+        "geonames" => {Ok(GUIElement::GEONAMES)}
+        "textarea" => {Ok(GUIElement::TEXTAREA)}
         _ => Err(DataModelError::ParsingError(format!("Gui-Element '{}' not found in Enum. Add first.", gui_element)))
     }
-
 }

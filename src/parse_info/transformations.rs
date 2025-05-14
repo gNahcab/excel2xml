@@ -1,14 +1,15 @@
 use std::collections::HashSet;
 use hcl::{Attribute, Block};
-use crate::hcl_info::errors::HCLDataError;
-use crate::hcl_info::header_value::HeaderValue;
-use crate::hcl_info::methods_domain::combine_method::{CombineMethod, WrapperCombineMethod};
-use crate::hcl_info::methods_domain::create_method::{CreateMethod, WrapperCreateMethod};
-use crate::hcl_info::methods_domain::identify_method::{IdentifyMethod, WrapperIdentifyMethod};
-use crate::hcl_info::methods_domain::lower_upper_method::{LowerMethod, UpperMethod, WrapperLowerUpperMethod};
-use crate::hcl_info::methods_domain::method::Method;
-use crate::hcl_info::methods_domain::replace_method::{ReplaceMethod, WrapperReplaceMethod};
-use crate::hcl_info::methods_domain::to_date_method::{ToDateMethod, WrapperToDateMethod};
+use crate::parse_info::errors::HCLDataError;
+use crate::parse_info::header_value::HeaderValue;
+use crate::parse_info::methods_domain::combine_method::{CombineMethod, WrapperCombineMethod};
+use crate::parse_info::methods_domain::create_method::{old_CreateMethod, CreateMethod, WrapperCreateMethod};
+use crate::parse_info::methods_domain::identify_method::{IdentifyMethod, WrapperIdentifyMethod};
+use crate::parse_info::methods_domain::lower_upper_method::{LowerMethod, UpperMethod, WrapperLowerUpperMethod};
+use crate::parse_info::methods_domain::method::Method;
+use crate::parse_info::methods_domain::replace_method::{ReplaceMethod, WrapperReplaceMethod};
+use crate::parse_info::methods_domain::to_alter_method::{AlterMethod, WrapperAlterMethod};
+use crate::parse_info::methods_domain::to_date_method::{ToDateMethod, WrapperToDateMethod};
 
 #[derive(Debug)]
 pub struct TransformationsWrapper (pub(crate) Block);
@@ -20,11 +21,10 @@ pub struct Transformations{
     pub replace_methods:Vec<ReplaceMethod>,
     pub to_date_methods:Vec<ToDateMethod>,
     pub create_methods:Vec<CreateMethod>,
+    pub alter_methods: Vec<AlterMethod>,
     pub identify_methods:Vec<IdentifyMethod>,
 }
 
-impl Transformations {
-}
 
 impl Transformations {
     fn new() -> Transformations {
@@ -35,6 +35,7 @@ impl Transformations {
             replace_methods: vec![],
             to_date_methods: vec![],
             create_methods: vec![],
+            alter_methods: vec![],
             identify_methods: vec![],
         }
     }
@@ -43,6 +44,9 @@ impl Transformations {
     }
     pub(crate) fn add_upper_method(&mut self, upper_method: UpperMethod) {
         self.upper_methods.push(upper_method);
+    }
+    pub(crate) fn add_alter_method(&mut self, alter_method: AlterMethod) {
+        self.alter_methods.push(alter_method);
     }
     pub(crate) fn add_combine_method(&mut self, combine_method: CombineMethod) {
         self.combine_methods.push(combine_method);
@@ -77,6 +81,22 @@ impl Transformations {
         vec.extend(
             self.to_date_methods.iter().map(|to_date|&to_date.output).collect::<Vec<&String>>(),
         );
+        todo!();
+        /*
+    vec.extend(
+        self.create_methods.iter().map(|create_method |&match create_method {
+            CreateMethod::IntegerCreateMethod(int_create) => {int_create}
+            CreateMethod::PermissionsCreateMethod(permissions_create) => {}
+        }).collect::<Vec<&String>>(),
+    );
+
+         */
+        vec.extend(
+            self.alter_methods.iter().map(|to_date|&to_date.output).collect::<Vec<&String>>(),
+        );
+        vec.extend(
+            self.identify_methods.iter().map(|to_date|&to_date.output).collect::<Vec<&String>>(),
+        );
         vec
 
     }
@@ -98,8 +118,10 @@ impl Transformations {
         vec.extend(
             self.to_date_methods.iter().map(|to_date|&to_date.input).collect::<Vec<&HeaderValue>>(),
         );
+        vec.extend(
+            self.alter_methods.iter().map(|to_date|&to_date.input).collect::<Vec<&HeaderValue>>(),
+        );
         vec
-
     }
     pub fn is_consistent(&self, sheet_nr: usize) -> Result<(), HCLDataError> {
         // check that output-values are unique
@@ -184,13 +206,17 @@ impl TransformationsWrapper {
                     //create_method.is_correct()?;
                     transformations.add_create_method(create_method);
                  }
+                 "alter"=> {
+                     let alter_method = WrapperAlterMethod(block.to_owned()).to_alter_method()?;
+                     transformations.add_alter_method(alter_method);
+                 }
                  "identify"=> {
                      let identify_method = WrapperIdentifyMethod(block.to_owned()).to_identify_method()?;
                      //identify_method.is_correct()?;
                      transformations.add_identify_method(identify_method);
                  }
                 _ => {
-                    return Err(HCLDataError::ParsingError(format!("unknown method found in transformations: can't find '{:?}'", block.identifier)));
+                    return Err(HCLDataError::ParsingError(format!("unknown method found in transformations: '{:?}'", block.identifier)));
                 }
             }
         }
@@ -199,15 +225,15 @@ impl TransformationsWrapper {
 }
 #[cfg(test)]
 mod test {
-    use crate::hcl_info::header_value::HeaderValue;
-    use crate::hcl_info::methods_domain::behavior_type::BehaviorType;
-    use crate::hcl_info::methods_domain::combine_method::CombineMethod;
-    use crate::hcl_info::methods_domain::date_type::DateType;
-    use crate::hcl_info::methods_domain::lower_upper_method::{LowerMethod, UpperMethod};
-    use crate::hcl_info::methods_domain::replace_method::ReplaceMethod;
-    use crate::hcl_info::methods_domain::target_type::TargetType;
-    use crate::hcl_info::methods_domain::to_date_method::ToDateMethod;
-    use crate::hcl_info::transformations::Transformations;
+    use crate::parse_info::header_value::HeaderValue;
+    use crate::parse_info::methods_domain::behavior_type::BehaviorType;
+    use crate::parse_info::methods_domain::combine_method::CombineMethod;
+    use crate::parse_info::methods_domain::date_type::DateType;
+    use crate::parse_info::methods_domain::lower_upper_method::{LowerMethod, UpperMethod};
+    use crate::parse_info::methods_domain::replace_method::ReplaceMethod;
+    use crate::parse_info::methods_domain::target_type::TargetType;
+    use crate::parse_info::methods_domain::to_date_method::ToDateMethod;
+    use crate::parse_info::transformations::Transformations;
 
     #[test]
     fn test_check_full_cycle() {

@@ -20,10 +20,6 @@ impl Display for Encoding {
 pub struct EncodingWrapper (pub(crate) String);
 impl EncodingWrapper {
     pub fn to_encoding(&self) -> Result<Encoding, ExcelDataError> {
-        if self.0.trim().is_empty() {
-            // empty default: UTF8
-            return Ok(UTF8)
-        }
         match self.0.to_lowercase().trim() {
             "utf-8" | "utf8" | "utf 8" => {
                 Ok(UTF8)

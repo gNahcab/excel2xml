@@ -1,13 +1,14 @@
 use serde_json::Value;
 use crate::parse_dm::domain::label::{Label, LabelWrapper};
 use crate::parse_dm::domain::res_property::{ResProperty, ResPropertyWrapper};
+use crate::parse_dm::domain::super_field::{SuperField, SuperFieldWrapper};
 use crate::parse_dm::errors::DataModelError;
 
 #[derive(Debug, PartialEq)]
 pub struct DMResource {
     pub(crate) name: String,
     labels: Vec<Label>,
-    pub super_field: String,
+    pub super_field: SuperField,
     pub(crate) properties: Vec<ResProperty>,
 }
 
@@ -16,7 +17,7 @@ impl DMResource {
         DMResource{
             name: transient_resource.name.unwrap(),
             labels: transient_resource.labels,
-            super_field: transient_resource.super_.unwrap(),
+            super_field: transient_resource.super_field.unwrap(),
             properties: transient_resource.res_props,
         }
     }
@@ -25,7 +26,7 @@ impl DMResource {
 struct TransientResource {
     name: Option<String>,
     labels: Vec<Label>,
-    super_: Option<String>,
+    super_field: Option<SuperField>,
     res_props: Vec<ResProperty>
 }
 
@@ -35,7 +36,7 @@ impl TransientResource {
         TransientResource{
             name: None,
             labels: vec![],
-            super_: None,
+            super_field: None,
             res_props: vec![],
         }
     }
@@ -46,8 +47,8 @@ impl TransientResource {
     fn add_label(&mut self, label: Label) {
         self.labels.push(label);
     }
-    fn add_super(&mut self, super_: String) {
-        self.super_ = Some(super_);
+    fn add_super(&mut self, super_field: SuperField) {
+        self.super_field = Some(super_field);
     }
     fn add_res_prop(&mut self, res_prop: ResProperty) {
         self.res_props.push(res_prop);
@@ -60,7 +61,7 @@ impl TransientResource {
         if self.labels.is_empty() {
             return Err(DataModelError::ParsingError(format!("at least one label is required for resource with name: '{:?}'", self.name)));
         }
-        if self.super_.is_none() {
+        if self.super_field.is_none() {
             return Err(DataModelError::ParsingError(format!("one super is required for resource with name: '{:?}'", self.name)));
         }
         if self.res_props.is_empty() {
@@ -104,7 +105,8 @@ impl ResourceWrapper{
                             return Err(DataModelError::ParsingError(format!("super '{:?}' of resource with name '{:?}' is not a String.", value, transient_resource.name)));
                         }
                     };
-                    transient_resource.add_super(super_.to_owned());
+                    let super_field = SuperFieldWrapper(super_.to_owned()).to_super_field()?;
+                    transient_resource.add_super(super_field);
                 }
                 "cardinalities" => {
                     let res_props_raw = match value {

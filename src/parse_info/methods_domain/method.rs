@@ -1,8 +1,8 @@
-use crate::hcl_info::methods_domain::combine_method::CombineMethod;
-use crate::hcl_info::methods_domain::create_method::CreateMethod;
-use crate::hcl_info::methods_domain::lower_upper_method::{LowerMethod, UpperMethod};
-use crate::hcl_info::methods_domain::replace_method::ReplaceMethod;
-use crate::hcl_info::methods_domain::to_date_method::ToDateMethod;
+use crate::parse_info::methods_domain::combine_method::CombineMethod;
+use crate::parse_info::methods_domain::create_method::old_CreateMethod;
+use crate::parse_info::methods_domain::lower_upper_method::{LowerMethod, UpperMethod};
+use crate::parse_info::methods_domain::replace_method::ReplaceMethod;
+use crate::parse_info::methods_domain::to_date_method::ToDateMethod;
 
 #[derive(Debug)]
 pub enum Method {
@@ -11,5 +11,5 @@ pub enum Method {
     ToDateMethod(ToDateMethod),
     LowerMethod(LowerMethod),
     UpperMethod(UpperMethod),
-    InventMethod(CreateMethod),
+    InventMethod(old_CreateMethod),
 }

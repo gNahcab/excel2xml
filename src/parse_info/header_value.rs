@@ -1,6 +1,6 @@
 use hcl::Expression;
-use crate::hcl_info::errors::HCLDataError;
-use crate::hcl_info::methods_domain::number_trait::NumberTrait;
+use crate::parse_info::errors::HCLDataError;
+use crate::parse_info::methods_domain::number_trait::NumberTrait;
 #[derive(Debug, Clone, PartialEq)]
 pub enum HeaderValue {
     Name(String),

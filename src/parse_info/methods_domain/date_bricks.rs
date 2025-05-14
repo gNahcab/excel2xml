@@ -1,7 +1,7 @@
 use hcl::{Block, Number};
 use crate::expression_trait::ExpressionTransform;
-use crate::hcl_info::errors::HCLDataError;
-use crate::hcl_info::methods_domain::number_trait::NumberTrait;
+use crate::parse_info::errors::HCLDataError;
+use crate::parse_info::methods_domain::number_trait::NumberTrait;
 
 pub struct WrapperDateBricks(pub(crate) hcl::Body);
 #[derive(Debug, Clone)]

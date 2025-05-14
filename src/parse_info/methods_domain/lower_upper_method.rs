@@ -1,8 +1,8 @@
 use hcl::Expression;
-use crate::hcl_info::errors::HCLDataError;
-use crate::hcl_info::header_value::{HeaderValue};
-use crate::hcl_info::methods_domain::number_trait::NumberTrait;
-use crate::hcl_info::methods_domain::wrapper_trait::Wrapper;
+use crate::parse_info::errors::HCLDataError;
+use crate::parse_info::header_value::{HeaderValue};
+use crate::parse_info::methods_domain::number_trait::NumberTrait;
+use crate::parse_info::methods_domain::wrapper_trait_block::Wrapper;
 
 #[derive(Debug)]
 pub struct WrapperLowerUpperMethod(pub(crate) hcl::Block);
@@ -109,7 +109,7 @@ impl UpperMethod {
 }
 #[cfg(test)]
 mod test {
-    use crate::hcl_info::methods_domain::lower_upper_method::WrapperLowerUpperMethod;
+    use crate::parse_info::methods_domain::lower_upper_method::WrapperLowerUpperMethod;
 
     #[test]
     fn test_lower_method() {

@@ -1,4 +1,4 @@
-use crate::hcl_info::errors::HCLDataError;
+use crate::parse_info::errors::HCLDataError;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum DateType {

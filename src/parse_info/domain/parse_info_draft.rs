@@ -3,11 +3,12 @@ use std::path::PathBuf;
 use hcl::{Body, Expression};
 use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::resource::DMResource;
-use crate::hcl_info::domain::command::{ParseInfoCommandWrapper};
-use crate::hcl_info::domain::command_path::CommandOrPath;
-use crate::hcl_info::domain::xlsx_workbook_info::{XLSXWorbookInfo, XLSXWorkbookInfoWrapper};
-use crate::hcl_info::errors::HCLDataError;
-use crate::hcl_info::transformations::Transformations;
+use crate::parse_info::domain::command::{ParseInfoCommandWrapper};
+use crate::parse_info::domain::command_path::CommandOrPath;
+use crate::parse_info::domain::supplements::Supplements;
+use crate::parse_info::domain::xlsx_workbook_info::{XLSXWorbookInfo, XLSXWorkbookInfoWrapper};
+use crate::parse_info::errors::HCLDataError;
+use crate::parse_info::transformations::Transformations;
 use crate::special_propnames::SpecialPropnames;
 
 pub struct ParseInformationDraft {
@@ -17,7 +18,8 @@ pub struct ParseInformationDraft {
     pub separator: String,
     pub dm_path: CommandOrPath,
     pub set_permissions: bool,
-    pub res_name_to_updates: HashMap<String, Transformations>
+    pub res_name_to_updates: HashMap<String, Transformations>,
+    pub res_name_to_supplements: HashMap<String, Supplements>
 }
 
 
@@ -67,6 +69,7 @@ impl ParseInformationDraft{
             dm_path: transient_parse_information.dm_path.unwrap(),
             set_permissions: transient_parse_information.permissions_set.unwrap(),
             res_name_to_updates: transient_parse_information.res_name_to_updates,
+            res_name_to_supplements: transient_parse_information.res_name_to_supplements,
         }
     }
 }
@@ -154,6 +157,7 @@ impl TryFrom<hcl::Body> for ParseInformationDraft {
             match block.identifier.as_str() {
                 "xlsx" => {
                     let xlsx_workbook: XLSXWorbookInfo = XLSXWorkbookInfoWrapper {0: block.to_owned().to_owned()}.to_wb_info()?;
+                    transient_parse_info.add_res_name_to_suppl(xlsx_workbook.sheet_infos.iter().map(|(sheet_nr, sheet_info)| (sheet_info.resource_name.to_owned(), sheet_info.supplements.to_owned())).collect())?;
                     transient_parse_info.add_xlsx_workbook(xlsx_workbook)?;
                 }
                 _ => {
@@ -173,12 +177,23 @@ struct TransientParseInformation {
     separator: Option<String>,
     dm_path: Option<CommandOrPath>,
     permissions_set: Option<bool>,
-    res_name_to_updates:  HashMap<String, Transformations>
+    res_name_to_updates:  HashMap<String, Transformations>,
+    res_name_to_supplements: HashMap<String, Supplements>
 }
 
 impl TransientParseInformation {
     fn new() -> Self {
-        TransientParseInformation { shortcode: None, rel_path_to_xlsx_wb_info: Default::default(), res_folder: None, separator: None, dm_path: None, permissions_set: None, res_name_to_updates: Default::default() }
+        TransientParseInformation { shortcode: None, rel_path_to_xlsx_wb_info: Default::default(), res_folder: None, separator: None, dm_path: None, permissions_set: None, res_name_to_updates: Default::default(), res_name_to_supplements: Default::default() }
+    }
+    pub(crate) fn add_res_name_to_suppl(&mut self, res_name_suppl: Vec<(String, Supplements)>) -> Result<(), HCLDataError> {
+        for (res_name, supplements) in res_name_suppl {
+            if self.res_name_to_supplements.contains_key(&res_name) {
+                return Err(HCLDataError::InputError(format!("Found same res-name '{}' multiple times as key for 'res_name_to_suppl'", res_name)));
+            }
+            self.res_name_to_supplements.insert(res_name, supplements);
+
+        }
+        Ok(())
     }
     pub(crate) fn add_shortcode(&mut self, shortcode: String) -> Result<(), HCLDataError> {
         if self.shortcode.is_some() {

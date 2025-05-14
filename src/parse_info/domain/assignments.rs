@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use hcl::Expression;
-use crate::hcl_info::domain::command::{ParseInfoCommand, ParseInfoCommandWrapper};
-use crate::hcl_info::errors::HCLDataError;
-use crate::hcl_info::header_value::{HeaderMethods, HeaderValue};
-use crate::hcl_info::wrapper_trait::Wrapper;
+use crate::parse_info::domain::command::{ParseInfoCommand, ParseInfoCommandWrapper};
+use crate::parse_info::errors::HCLDataError;
+use crate::parse_info::header_value::{HeaderMethods, HeaderValue};
+use crate::parse_info::wrapper_trait::Wrapper;
 
+#[derive(Debug)]
 pub struct Assignments {
     pub header_to_propname: HashMap<String, HeaderValue>,
     find_rest: bool

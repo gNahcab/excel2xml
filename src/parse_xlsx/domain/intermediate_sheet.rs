@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::hash::Hash;
-use crate::parse_xlsx::domain::data_row::{DataRow, DataRowWrapper};
+use calamine::{Data, Range};
+use crate::parse_xlsx::domain::data_col::{DataCol};
 use crate::parse_xlsx::errors::ExcelDataError;
 use crate::read_xlsx::sheet::Sheet;
 #[derive(Clone)]
@@ -7,20 +9,20 @@ pub struct IntermediateSheet {
     pub(crate) res_name: String,
     pub rel_path: String,
     pub sheet_info_nr: usize,
-    pub data_rows: Vec<DataRow>,
+    pub col_nr_to_data_cols: HashMap<usize, DataCol>,
 }
 
 impl IntermediateSheet {
     fn new(res_name: String, rel_path: String, sheet_info_nr: usize) -> Self {
         IntermediateSheet {
-            data_rows: vec![],
             res_name,
             rel_path,
             sheet_info_nr,
+            col_nr_to_data_cols: Default::default(),
         }
     }
-    pub(crate) fn add_row(&mut self, data_row: DataRow) {
-        self.data_rows.push(data_row);
+    pub(crate) fn add_col(&mut self, id_: usize, data_col: DataCol) {
+        self.col_nr_to_data_cols.insert(id_, data_col);
     }
 }
 pub(crate) struct IntermediateSheetWrapper(pub(crate) Sheet);
@@ -31,13 +33,46 @@ impl IntermediateSheetWrapper {
         if self.0.table.is_empty() {
             return Err(ExcelDataError::InputError("table cannot be empty".to_string()));
         }
+        // prepare cols
+        let mut cols: Vec<Vec<String>> = vec![];
+        for _ in 0..self.0.table.width() {
+            &cols.push(vec![]);
+        }
         for row in self.0.table.rows() {
-            let data_row: DataRow = DataRowWrapper(row.to_owned()).to_data_row();
-            data_sheet.add_row(data_row);
+            for (col_nr, value) in row.iter().enumerate() {
+                let value: String = parse_data_to_string(value)?;
+                cols[col_nr].push(value)
+            }
+        }
+        for (col_id, col) in cols.iter().enumerate() {
+            let (head, sliced_col) = col.split_at(1);
+            let data_col: DataCol = DataCol::new(sliced_col.to_vec(), head[0].to_owned());
+            data_sheet.add_col(col_id, data_col);
         }
         Ok(data_sheet)
     }
 }
+
+fn parse_data_to_string(value: &Data) -> Result<String, ExcelDataError> {
+    // parse data to string; adjust this according to needs later
+    let value = match value {
+        Data::Int(number) => {number.to_string()}
+        Data::Float(number) => {number.to_string()}
+        Data::String(string) => {string.to_owned()}
+        Data::Bool(bool) => {bool.to_string()}
+        Data::DateTime(date) => {date.to_string()}
+        Data::DateTimeIso(date) => {date.to_owned()}
+        Data::DurationIso(duration) => {duration.to_owned()}
+        Data::Error(err) => {
+            return Err(ExcelDataError::CellError(err.to_owned()));
+        }
+        Data::Empty => {
+            "".to_string()
+        }
+    };
+    Ok(value)
+}
+
 
 pub fn intermediate_sheets(sheets: Vec<Sheet>) -> Result<Vec<IntermediateSheet>, ExcelDataError> {
     let mut data_sheets = vec![];

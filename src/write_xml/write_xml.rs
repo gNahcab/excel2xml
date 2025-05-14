@@ -3,9 +3,11 @@ use simple_xml_builder::XMLElement;
 use crate::errors::Excel2XmlError;
 use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::object::ValueObject;
+use crate::parse_info::domain::parse_info::ParseInformation;
 use crate::parse_xlsx::domain::data_container::DataContainer;
-use crate::parse_xlsx::domain::data_resource::DataResource;
+use crate::parse_xlsx::domain::instance::Instance;
 use crate::parse_xlsx::errors::ExcelDataError;
+use crate::write_xml::xml_permissions::add_default_permissions;
 
 pub fn write_xml_example() {
     let file = File::create("sample.xml").unwrap();
@@ -24,34 +26,45 @@ pub fn write_xml_example() {
     person.write(file).unwrap();
 }
 
-pub fn write_xml(data_container: &DataContainer, data_model: &DataModel) -> Result<(), Excel2XmlError> {
-    let path = "test.xml";
-    let file = File::create(path).unwrap();
+pub fn write_xml(data_container: &DataContainer, data_model: &DataModel, parse_info: &ParseInformation) -> Result<(), Excel2XmlError> {
+    let path = new_path(&data_container.res_name);
+    let file = File::create(path.as_str())?;
     let mut knora = XMLElement::new("knora");
     add_default_knora_attributes(&mut knora);
-    add_shortcode_default_ontology_attributes(&mut knora, "0828".to_string(), "biz".to_string());
-    add_project_permissions_standard(&mut knora);
+    add_shortcode_default_ontology_attributes(&mut knora, &data_model.shortcode.to_owned(), &data_model.shortname);
+    if parse_info.set_permissions {
+        add_default_permissions(&mut knora);
+    }
+    let restype = ":".to_string() + data_container.res_name.as_str();
     for resource in data_container.resources.iter() {
         let mut xml_res = XMLElement::new("resource");
-        xml_res.add_attribute("id", &resource.id);
         xml_res.add_attribute("label", &resource.label);
-        xml_res.add_attribute("permissions", &resource.res_permissions);
+        xml_res.add_attribute("id", &resource.id);
+        xml_res.add_attribute("restype", &restype);
+
+        if parse_info.set_permissions {
+            xml_res.add_attribute("permissions", &resource.res_permissions);
+        }
         if resource.bitstream.is_some() {
             xml_res.add_child(bitstream_child(&resource));
         }
-        for (propname, value_field) in resource.propname_to_values.iter() {
-            let property_object = &data_model.properties.iter().find(|property|property.name.eq(propname)).unwrap().object;
+        for dasch_value_field in resource.dasch_value_fields.iter() {
+            let property_object = &data_model.properties.iter().find(|property|property.name.eq(&dasch_value_field.propname)).unwrap().object;
             let (xml_object, sub_xml_object) = xml_object_sub_object(property_object)?;
             let mut prop_container = XMLElement::new(xml_object);
+            let propname = ":".to_string() + dasch_value_field.propname.as_str();
             prop_container.add_attribute("name", propname);
-            for dasch_value in value_field.values.iter() {
+            for dasch_value in dasch_value_field.values.iter() {
                 let mut prop_value = XMLElement::new(&sub_xml_object);
-                    prop_container.add_attribute("permissions", dasch_value.permission);
-                if dasch_value.encoding.is_some() {
-                    prop_container.add_attribute("encoding", dasch_value.encoding.as_ref().unwrap());
+                if parse_info.set_permissions {
+                    // is necessary to avoid an xml file with unnecessary permissions
+                    prop_value.add_attribute("permissions", dasch_value.permission);
                 }
                 if dasch_value.comment.is_some() {
-                    prop_container.add_attribute("comment", dasch_value.comment.as_ref().unwrap(), );
+                    prop_value.add_attribute("comment", dasch_value.comment.as_ref().unwrap(), );
+                }
+                if dasch_value.encoding.is_some() {
+                    prop_value.add_attribute("encoding", dasch_value.encoding.as_ref().unwrap());
                 }
                 prop_value.add_text(&dasch_value.value);
                 prop_container.add_child(prop_value);
@@ -61,42 +74,12 @@ pub fn write_xml(data_container: &DataContainer, data_model: &DataModel) -> Resu
         knora.add_child(xml_res);
     }
     knora.write(file)?;
+    println!("wrote-file {:?}", path);
     Ok(())
 }
 
-fn default_xml_header() -> XMLElement  {
-    let default = XMLElement::new("permission");
-    /*
-     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xmlns="https://dasch.swiss/schema"
-        xsi:schemaLocation="https://dasch.swiss/schema https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/src/dsp_tools/resources/schema/data.xsd"
-        shortcode="082E"
-        default-ontology="rosetta">
-
-        <!-- :permissions see https://docs.dasch.swiss/latest/DSP-API/05-internals/design/api-admin/administration/#permissions -->
-        <permissions id="res-default">
-            <allow group="UnknownUser">V</allow>
-            <allow group="KnownUser">V</allow>
-            <allow group="Creator">CR</allow>
-            <allow group="ProjectAdmin">CR</allow>
-        </permissions>
-        <permissions id="res-restricted">
-            <allow group="Creator">M</allow>
-            <allow group="ProjectAdmin">D</allow>
-        </permissions>
-        <permissions id="prop-default">
-            <allow group="UnknownUser">V</allow>
-            <allow group="KnownUser">V</allow>
-            <allow group="Creator">CR</allow>
-            <allow group="ProjectAdmin">CR</allow>
-        </permissions>
-        <permissions id="prop-restricted">
-            <allow group="Creator">M</allow>
-            <allow group="ProjectAdmin">D</allow>
-        </permissions>
-
-     */
-    todo!()
+fn new_path(res_name: &String) -> String {
+    res_name.to_owned() + ".xml"
 }
 
 fn xml_object_sub_object(value_object: &ValueObject) -> Result<(String, String), ExcelDataError> {
@@ -145,63 +128,14 @@ fn add_default_knora_attributes(knora: &mut XMLElement) {
     knora.add_attribute("xsi:schemaLocation", "https://dasch.swiss/schema https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/src/dsp_tools/resources/schema/data.xsd");
 }
 
-fn add_shortcode_default_ontology_attributes(knora: &mut XMLElement, shortcode: String, default_ontology: String) {
+fn add_shortcode_default_ontology_attributes(knora: &mut XMLElement, shortcode: &String, default_ontology: &String) {
     knora.add_attribute("shortcode", shortcode);
-    knora.add_attribute("default_ontology", default_ontology);
+    knora.add_attribute("default-ontology", default_ontology);
 }
 
-fn add_project_permissions_standard(knora: &mut XMLElement) {
-    add_default_permissions(knora, "res-default".to_string());
-    add_restricted_permissions(knora, "res-restricted".to_string());
-    add_default_permissions(knora, "prop-default".to_string());
-    add_restricted_permissions(knora, "prop-restricted".to_string());
-}
 
-fn add_restricted_permissions(knora: &mut XMLElement, id: String) {
-    let mut permissions_restricted = XMLElement::new("permissions");
-    permissions_restricted.add_attribute("id", id);
-    let mut proj_member = XMLElement::new("allow");
-    proj_member.add_attribute("group", "ProjectMember");
-    proj_member.add_text("M");
-    permissions_restricted.add_child(proj_member);
-    let mut proj_admin = XMLElement::new("allow");
-    proj_admin.add_attribute("group", "ProjectAdmin");
-    proj_admin.add_text("CR");
-    permissions_restricted.add_child(proj_admin);
-    let mut creator = XMLElement::new("allow");
-    creator.add_attribute("group", "Creator");
-    creator.add_text("CR");
-    permissions_restricted.add_child(creator);
-    knora.add_child(permissions_restricted);
-}
 
-fn add_default_permissions(knora: &mut XMLElement, id: String) {
-    let mut permissions_default = XMLElement::new("permissions");
-    permissions_default.add_attribute("id", id);
-    let mut unknown_user = XMLElement::new("allow");
-    unknown_user.add_attribute("group", "UnknownUser");
-    unknown_user.add_text("V");
-    permissions_default.add_child(unknown_user);
-    let mut known_user = XMLElement::new("allow");
-    known_user.add_attribute("group", "KnownUser");
-    known_user.add_text("V");
-    permissions_default.add_child(known_user);
-    let mut proj_member = XMLElement::new("allow");
-    proj_member.add_attribute("group", "ProjectMember");
-    proj_member.add_text("D");
-    permissions_default.add_child(proj_member);
-    let mut proj_admin = XMLElement::new("allow");
-    proj_admin.add_attribute("group", "ProjectAdmin");
-    proj_admin.add_text("CR");
-    permissions_default.add_child(proj_admin);
-    let mut creator = XMLElement::new("allow");
-    creator.add_attribute("group", "Creator");
-    creator.add_text("CR");
-    permissions_default.add_child(creator);
-    knora.add_child(permissions_default);
-}
-
-fn bitstream_child(resource: &DataResource) -> XMLElement {
+fn bitstream_child(resource: &Instance) -> XMLElement {
     let mut bitstream = XMLElement::new("bitstream");
     if resource.bitstream_permissions.is_some() {
         bitstream.add_attribute("permissions",resource.bitstream_permissions.as_ref().unwrap())
@@ -212,16 +146,16 @@ fn bitstream_child(resource: &DataResource) -> XMLElement {
 mod test {
     use std::fs::File;
     use simple_xml_builder::XMLElement;
-    use crate::write_xml::write_xml::{add_default_knora_attributes, add_project_permissions_standard, add_shortcode_default_ontology_attributes};
+    use crate::write_xml::write_xml::{add_default_knora_attributes, add_shortcode_default_ontology_attributes};
+    use crate::write_xml::xml_permissions::add_default_permissions;
 
     #[test]
     fn test_default() {
         let file = File::create("sample.xml").unwrap();
         let mut knora = XMLElement::new("knora");
         add_default_knora_attributes(&mut knora);
-        add_shortcode_default_ontology_attributes(&mut knora, "0828".to_string(), "biz".to_string());
-        add_project_permissions_standard(&mut knora);
-
+        add_shortcode_default_ontology_attributes(&mut knora, &"0828".to_string(), &"biz".to_string());
+        add_default_permissions(&mut knora);
         knora.write(file).unwrap();
         /*
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

@@ -6,9 +6,9 @@ edition = "2021"
 [dependencies]
 simple-xml-builder = "1.1.0"
 serde_json = "1.0.127"
-calamine = "0.25.0" # excel
+calamine = "0.26.1" # excel
 hcl-rs = "0.18.0" # HCL parser
 rust_decimal = "1.36.0"
-dotenv = "0.15.0"
 regex = "1.11.0"
 log = "0.4.22"
+clap = { version = "4.4.0", features = ["derive"] } # command-line parser

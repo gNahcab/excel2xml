@@ -11,6 +11,7 @@ pub struct DataModelBuilder {
     pub properties: Vec<Property>,
     pub resources: Vec<DMResource>,
     pub shortcode: Option<String>,
+    pub shortname: Option<String>,
     pub lists: HashMap<String, DaSCHList>,
 }
 
@@ -24,6 +25,7 @@ impl Builder for DataModelBuilder {
             properties: vec![],
             resources: vec![],
             shortcode: Option::None,
+            shortname: Option::None,
             lists: HashMap::new(),
         }
     }
@@ -62,11 +64,15 @@ impl Builder for DataModelBuilder {
             properties: self.properties,
             resources: self.resources,
             shortcode: self.shortcode.unwrap(),
+            shortname: self.shortname.unwrap(),
             lists: self.lists,
         }
     }
 
     fn add_shortcode(&mut self, shortcode: String) {
         self.shortcode = Option::Some(shortcode);
+    }
+    fn add_shortname(&mut self, shortname: String) {
+        self.shortname = Option::Some(shortname);
     }
 }

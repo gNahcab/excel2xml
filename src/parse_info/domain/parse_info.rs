@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use crate::hcl_info::domain::parse_info_draft::ParseInformationDraft;
-use crate::hcl_info::domain::xlsx_workbook_info::XLSXWorbookInfo;
-use crate::hcl_info::transformations::Transformations;
+use crate::parse_info::domain::parse_info_draft::ParseInformationDraft;
+use crate::parse_info::domain::supplements::Supplements;
+use crate::parse_info::domain::xlsx_workbook_info::XLSXWorbookInfo;
+use crate::parse_info::transformations::Transformations;
 
 pub struct ParseInformation {
     pub shortcode: String,
@@ -11,7 +12,8 @@ pub struct ParseInformation {
     pub separator: String,
     pub dm_path: PathBuf,
     pub set_permissions: bool,
-    pub res_name_to_updates: HashMap<String, Transformations>
+    pub res_name_to_updates: HashMap<String, Transformations>,
+    pub res_name_to_supplements: HashMap<String, Supplements>
 }
 
 impl ParseInformation {
@@ -23,7 +25,8 @@ impl ParseInformation {
             dm_path,
             separator: p_i_draft.separator,
             set_permissions: p_i_draft.set_permissions,
-            res_name_to_updates: p_i_draft.res_name_to_updates
+            res_name_to_updates: p_i_draft.res_name_to_updates,
+            res_name_to_supplements: p_i_draft.res_name_to_supplements,
         }
     }
 }

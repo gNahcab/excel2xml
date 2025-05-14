@@ -1,15 +1,16 @@
 use std::collections::HashMap;
-use hcl::value;
 use crate::parse_dm::domain::data_model::DataModel;
-use crate::parse_xlsx::domain::dasch_value_field::{DaschValueField, ValueFieldWrapper};
-use crate::parse_xlsx::domain::transient_data_header::{PartDataHeader, TransientDataHeader};
+use crate::parse_dm::domain::super_field::SuperField;
+use crate::parse_info::domain::prop_supplement::{PropSupplement};
+use crate::parse_info::domain::resource_supplement::{ResourceSupplement};
+use crate::parse_xlsx::domain::dasch_value_field::{DaschValueField, FieldsWrapper};
 use crate::parse_xlsx::domain::data_row::DataRow;
-use crate::parse_xlsx::domain::permissions::{Permissions, PermissionsWrapper};
 use crate::parse_xlsx::domain::header::Header;
-use crate::parse_xlsx::domain::subheader_value::{subheader_value, SubheaderValues};
+use crate::parse_xlsx::domain::permissions::{Permissions};
+use crate::parse_xlsx::domain::resource_data::{to_resource_data, ResourceSupplData};
 use crate::parse_xlsx::errors::ExcelDataError;
 
-pub struct DataResource {
+pub struct Instance {
     pub id: String,
     pub label: String,
     pub iri: Option<String>,
@@ -17,73 +18,146 @@ pub struct DataResource {
     pub res_permissions: Permissions,
     pub bitstream: Option<String>,
     pub bitstream_permissions: Option<Permissions>,
-    pub propname_to_values: HashMap<String, DaschValueField>,
+    pub dasch_value_fields:  Vec<DaschValueField>,
 }
 
-impl DataResource {
-    fn new(transient_data_resource: PartDataResource, created_data_resource: PartDataResource, res_permissions: Permissions) -> Self {
-        let id = if transient_data_resource.id.is_some() {
-            transient_data_resource.id.unwrap()
-        } else {
-            created_data_resource.id.unwrap()
-        };
-        let label = if transient_data_resource.label.is_some() {
-            transient_data_resource.label.unwrap()
-        } else {
-            created_data_resource.label.unwrap()
-        };
-        let iri = if transient_data_resource.iri.is_some() {
-            transient_data_resource.iri
-        } else {
-            created_data_resource.iri
-        };
-        let ark = if transient_data_resource.ark.is_some() {
-            transient_data_resource.ark
-        } else {
-            created_data_resource.ark
-        };
-        let bitstream_permissions = if transient_data_resource.bitstream_permissions.is_some() {
-            transient_data_resource.bitstream_permissions
-        } else {
-            created_data_resource.bitstream_permissions
-        };
-        let bitstream = if transient_data_resource.bitstream.is_some() {
-            transient_data_resource.bitstream
-        } else {
-            created_data_resource.bitstream
-        };
-        let mut propname_to_values = transient_data_resource.propname_to_values;
-        created_data_resource.propname_to_values.iter().for_each(|(propname, value)| { propname_to_values.insert(propname.to_string(), value.to_owned()); });
-
-
-        DataResource {
+impl Instance {
+    fn new(dasch_value_fields: Vec<DaschValueField>, resource_data: ResourceSupplData, id: String, label: String) -> Self {
+        Self{
             id,
             label,
-            iri,
-            ark,
-            res_permissions,
-            bitstream,
-            bitstream_permissions,
-            propname_to_values,
+            iri: resource_data.iri,
+            ark: resource_data.ark,
+            res_permissions: resource_data.res_permissions,
+            bitstream: resource_data.bitstream,
+            bitstream_permissions: resource_data.bitstream_permissions,
+            dasch_value_fields,
         }
     }
 }
-
-pub struct DataResourceWrapper(pub(crate) (DataRow, DataRow));
-
-impl DataResourceWrapper {
-    pub(crate) fn to_data_resource(&self, data_model: &DataModel, separator: &String, headers: &TransientDataHeader, row_nr: usize) -> Result<DataResource, ExcelDataError> {
-        let  xlsx_data_resource= fill_part_data_resource(&self.0.0, &headers.xlsx_data_header, separator, data_model,  row_nr)?;
-        let  created_data_resource = fill_part_data_resource(&self.0.1, &headers.created_data_header, separator, data_model,  row_nr)?;
-        let res_permissions = extract_or_create_res_permissions(xlsx_data_resource.res_permissions, created_data_resource.res_permissions);
-        Ok(DataResource::new(xlsx_data_resource, created_data_resource, res_permissions))
-    }
-
-
+#[derive(Debug)]
+struct TransientInstance {
+    id: Option<String>,
+    label: Option<String>,
+    propname_to_values: HashMap<String, Vec<String>>,
+    prop_name_to_prop_suppl_values: HashMap<String, Vec<(PropSupplement, Vec<String>)>>,
+    res_suppl_values: Vec<(ResourceSupplement, String)>,
 }
 
-fn extract_or_create_res_permissions(xlsx_permissions: Option<Permissions>, created_permissions: Option<Permissions>) -> Permissions {
+
+impl TransientInstance {
+    fn new() -> Self {
+        TransientInstance {
+            id: None,
+            label: None,
+            propname_to_values: Default::default(),
+            prop_name_to_prop_suppl_values: Default::default(),
+            res_suppl_values: vec![],
+        }
+    }
+    pub(crate) fn add_prop_suppl(&mut self, prop_suppl: PropSupplement, entries: Vec<String>) {
+        if !self.prop_name_to_prop_suppl_values.contains_key(&prop_suppl.part_of) {
+            self.prop_name_to_prop_suppl_values.insert(prop_suppl.part_of.to_owned(), vec![]);
+        }
+        let mutable_vec = self.prop_name_to_prop_suppl_values.get_mut(&prop_suppl.part_of).unwrap();
+        mutable_vec.push((prop_suppl.to_owned(), entries));
+    }
+    pub(crate) fn add_id(&mut self, id: String) -> Result<(), ExcelDataError> {
+        if self.id.is_some() {
+            return Err(ExcelDataError::InputError(format!("Instance: multiple ids: First: '{}', Second: '{}'", self.id.as_ref().unwrap(),id)));
+        }
+        self.id = Some(id);
+        Ok(())
+    }
+    pub(crate) fn add_label(&mut self, label: String) -> Result<(), ExcelDataError> {
+        if self.label.is_some() {
+            return Err(ExcelDataError::InputError(format!("Instance: multiple labels: First: '{}', Second: '{}'", self.label.as_ref().unwrap(),label)));
+        }
+        self.label = Some(label);
+        Ok(())
+    }
+
+    fn found_id_label(&self) -> Result<(), ExcelDataError> {
+        if self.label.is_none() {
+            return Err(ExcelDataError::InputError(format!("Instance: Cannot find label in resource with propname_to_values: '{:?}'", self.propname_to_values)))
+        }
+        if self.id.is_none() {
+            return Err(ExcelDataError::InputError(format!("Instance: Cannot find id in resource with propname_to_values: '{:?}'", self.propname_to_values)))
+        }
+        Ok(())
+    }
+    pub(crate) fn add_res_suppl(&mut self, res_suppl: ResourceSupplement, entry: String) {
+        self.res_suppl_values.push((res_suppl, entry));
+    }
+    fn add_values_of_prop(&mut self, prop_name: &String, value: Vec<String>) -> Result<(), ExcelDataError> {
+        if self.propname_to_values.contains_key(prop_name) {
+            return Err(ExcelDataError::InputError(format!("Found multiple time same propname '{}' used as key for different value. First: '{:?}', second: '{:?}'", prop_name, value, self.propname_to_values.get(prop_name).unwrap())))
+        }
+        self.propname_to_values.insert(prop_name.to_owned(), value);
+        Ok(())
+    }
+}
+
+
+pub struct InstanceWrapper(pub(crate) DataRow);
+
+
+impl InstanceWrapper {
+    pub(crate) fn to_instance(&self, data_model: &&DataModel, separator: &String, row_nr_to_propname: &HashMap<usize, String>, row_nr_to_prop_suppl: &HashMap<usize, PropSupplement>, row_nr_to_res_suppl: &HashMap<usize, ResourceSupplement>, row_nr_to_id_label: &HashMap<usize, Header>, super_field: &SuperField) -> Result<Instance, ExcelDataError> {
+        let mut transient_instance = TransientInstance::new();
+        //transient_instance.add_resource_permissions(res_permissions);
+        //let copyright_holder = extract_or_create_copyright_holder();
+        //transient_instance.add_copyright_holder(copyright_holder);
+        for (row_nr, entry) in self.0.row.iter().enumerate() {
+            let entry = entry.trim();
+            if entry.is_empty() {
+                continue;
+            }
+            let entries: Vec<String> = entry.split(separator).map(|value|value.to_string()).collect();
+            if row_nr_to_propname.contains_key(&row_nr) {
+                let header = row_nr_to_propname.get(&row_nr).unwrap();
+                transient_instance.add_values_of_prop(header, entries.to_owned())?;
+            }
+            if row_nr_to_prop_suppl.contains_key(&row_nr) {
+                let prop_suppl = row_nr_to_prop_suppl.get(&row_nr).unwrap();
+                transient_instance.add_prop_suppl(prop_suppl.to_owned(), entries.to_owned());
+            }
+            if row_nr_to_res_suppl.contains_key(&row_nr) {
+                let res_suppl = row_nr_to_res_suppl.get(&row_nr).unwrap();
+                if entries.len() != 1 {
+                    return Err(ExcelDataError::InputError(format!("Entries of res-suppl should be 1, but found '{}' number of entries in :'{:?}'", entries.len(), entries)));
+                }
+                transient_instance.add_res_suppl(res_suppl.to_owned(), entry.to_owned());
+            }
+            if row_nr_to_id_label.contains_key(&row_nr) {
+                match row_nr_to_id_label.get(&row_nr).unwrap() {
+                    Header::ID => {
+                        transient_instance.add_id(entry.to_string())?;
+                    }
+                    Header::Label => {
+                        transient_instance.add_label(entry.to_string())?;
+                    }
+                    _ => {todo!("remove everything except id, label")}
+                }
+            } else {
+                //ignore
+            }
+        }
+        transient_instance.found_id_label()?;
+        let dasch_value_fields = FieldsWrapper(transient_instance.propname_to_values.to_owned(), transient_instance.prop_name_to_prop_suppl_values.to_owned()).to_dasch_value_fields(data_model)?;
+        let resource_data = to_resource_data(&transient_instance.res_suppl_values, super_field)?;
+        Ok(Instance::new(dasch_value_fields, resource_data, transient_instance.id.unwrap(), transient_instance.label.unwrap()))
+    }
+}
+
+fn extract_or_create_copyright_holder() -> () {
+    todo!()
+}
+
+fn extract_or_create_res_permissions() -> Permissions {
     // if res_permission does exist in the header, we add it here
+    // todo
+    /*
     if xlsx_permissions.is_some() {
         xlsx_permissions.unwrap()
     } else if created_permissions.is_some() {
@@ -91,10 +165,13 @@ fn extract_or_create_res_permissions(xlsx_permissions: Option<Permissions>, crea
     } else {
         Permissions::DEFAULT
     }
+     */
+    Permissions::DEFAULT
 }
 
-fn fill_part_data_resource(data_row: &DataRow, headers: &PartDataHeader, separator: &String, data_model: &DataModel, row_nr: usize) -> Result<PartDataResource, ExcelDataError> {
-    let mut part_data_resource = PartDataResource::new();
+/*
+fn fill_part_data_resource(data_row: &DataRow, headers: &PartDataHeader, separator: &String, data_model: &DataModel, row_nr: usize) -> Result<PartInstance, ExcelDataError> {
+    let mut part_data_resource = PartInstance::new();
     add_res_prop(data_row, &mut part_data_resource, headers, row_nr)?;
     add_bitstream(data_row, &mut part_data_resource, headers, row_nr)?;
     add_propnames_and_subheaders(data_row, &mut part_data_resource, headers, separator, data_model)?;
@@ -102,7 +179,8 @@ fn fill_part_data_resource(data_row: &DataRow, headers: &PartDataHeader, separat
     Ok(part_data_resource)
 }
 
-fn add_res_prop(data_row: &DataRow, transient_data_resource: &mut PartDataResource, headers: &PartDataHeader, nr: usize) -> Result<(), ExcelDataError> {
+
+fn add_res_prop(data_row: &DataRow, transient_data_resource: &mut PartInstance, headers: &PartDataHeader, nr: usize) -> Result<(), ExcelDataError> {
     for (header, pos) in headers.res_prop_to_pos.iter() {
         match header {
             Header::ID => {
@@ -139,7 +217,7 @@ fn add_res_prop(data_row: &DataRow, transient_data_resource: &mut PartDataResour
     }
     Ok(())
 }
-fn add_bitstream(data_row: &DataRow, transient_data_resource: &mut PartDataResource, headers: &PartDataHeader, nr: usize) -> Result<(), ExcelDataError> {
+fn add_bitstream(data_row: &DataRow, transient_data_resource: &mut PartInstance, headers: &PartDataHeader, nr: usize) -> Result<(), ExcelDataError> {
     if headers.bitstream.is_some() {
         let value = &data_row.row[headers.bitstream.unwrap()].trim();
         if value.is_empty() {
@@ -155,7 +233,7 @@ fn add_bitstream(data_row: &DataRow, transient_data_resource: &mut PartDataResou
     Ok(())
 }
 
-fn add_propnames_and_subheaders(data_row: &DataRow, transient_data_resource: &mut PartDataResource, headers: &PartDataHeader, separator: &String, data_model: &DataModel) -> Result<(), ExcelDataError> {
+fn add_propnames_and_subheaders(data_row: &DataRow, transient_data_resource: &mut PartInstance, headers: &PartDataHeader, separator: &String, data_model: &DataModel) -> Result<(), ExcelDataError> {
     for (propname, pos ) in headers.propname_to_pos.iter() {
         let subheader = to_subheader_value(data_row, headers, propname, separator, data_model)?;
         let raw_value = &data_row.row[pos.to_owned()].trim();
@@ -185,6 +263,7 @@ fn to_subheader_value(data_row: &DataRow, headers: &PartDataHeader, propname: &S
 }
 
 
+ */
 pub fn split_field(field: &&str, separator: &String) -> Vec<String> {
     match field.contains(separator) {
         true => {
@@ -196,85 +275,6 @@ pub fn split_field(field: &&str, separator: &String) -> Vec<String> {
     }
 }
 
-struct TransientDataResource {
-    xlsx_data_resource: PartDataResource,
-    created_data_resource: PartDataResource,
-}
-impl TransientDataResource {
-    fn new(
-        xlsx_data_resource: PartDataResource,
-        created_data_resource: PartDataResource,
-    ) -> Self {
-        TransientDataResource{ xlsx_data_resource, created_data_resource }
-    }
-
-}
-
-struct PartDataResource {
-    id: Option<String>,
-    label: Option<String>,
-    res_permissions: Option<Permissions>,
-    iri: Option<String>,
-    ark: Option<String>,
-    bitstream: Option<String>,
-    bitstream_permissions: Option<Permissions>,
-    propname_to_values: HashMap<String, DaschValueField>,
-}
-
-impl PartDataResource {
-    fn new() -> Self {
-        PartDataResource {
-            id: None,
-            label: None,
-            res_permissions: None,
-            iri: None,
-            ark: None,
-            propname_to_values: Default::default(),
-            bitstream: None,
-            bitstream_permissions: None,
-        }
-    }
-    fn add_id(&mut self, id: String)  {
-        self.id = Option::from(id);
-    }
-    fn add_label(&mut self, label: String) {
-        self.label = Option::from(label);
-    }
-    fn add_resource_permissions(&mut self, permissions: Permissions) -> Result<(), ExcelDataError>  {
-        self.res_permissions = Some(permissions);
-        Ok(())
-    }
-    fn add_iri(&mut self, iri: String) {
-        if !iri.is_empty() {
-            self.iri = Option::from(iri);
-        }
-    }
-    fn add_ark(&mut self, ark: String) {
-        if !ark.is_empty() {
-            self.ark = Option::from(ark);
-        }
-    }
-    fn add_bitstream(&mut self, bitstream: String) {
-        self.bitstream = Option::from(bitstream);
-    }
-    fn add_bitstream_permissions(&mut self, value: String) -> Result<(), ExcelDataError> {
-        self.bitstream_permissions =  Some(PermissionsWrapper(value).to_permissions()?);
-        Ok(())
-    }
-    fn add_values_of_prop(&mut self, prop_name: &String, value: DaschValueField) {
-        self.propname_to_values.insert(prop_name.to_owned(), value);
-    }
-    fn complete(&self, row_nr: usize, headers: &PartDataHeader) -> Result<(), ExcelDataError> {
-        if self.id.is_none() && headers.id.is_some() {
-            return Err(ExcelDataError::ParsingError(format!("No id found in row-nr '{}'!", row_nr)));
-
-        }
-        if self.label.is_none() && headers.label.is_some() {
-            return Err(ExcelDataError::ParsingError(format!("No label found in row-nr '{}'!", row_nr)));
-        }
-        Ok(())
-    }
-}
 
 
 

@@ -1,8 +1,8 @@
 use hcl::{Block, Expression};
 use crate::expression_trait::ExpressionTransform;
-use crate::hcl_info::errors::HCLDataError;
-use crate::hcl_info::header_value::{HeaderMethods, HeaderValue};
-use crate::hcl_info::methods_domain::wrapper_trait::Wrapper;
+use crate::parse_info::errors::HCLDataError;
+use crate::parse_info::header_value::{HeaderMethods, HeaderValue};
+use crate::parse_info::methods_domain::wrapper_trait_block::Wrapper;
 
 pub struct WrapperCombineMethod (pub(crate) Block);
 #[derive(Debug)]
@@ -24,23 +24,14 @@ impl TransientStructureCombineMethod {
             suffix: None,
         }
     }
-    pub(crate) fn add_input(&mut self, input: Expression) -> Result<(), HCLDataError> {
+    pub(crate) fn add_input(&mut self, input: Vec<HeaderValue>) -> Result<(), HCLDataError> {
         if self.input.is_some() {
             return Err(HCLDataError::ParsingError(format!("method: '{:?}' has multiple input-attributes", self)));
         }
-        match input {
-            Expression::Array(array) => {
-                let str_vec:Vec<HeaderValue> = array.iter().map(|expr|expr.to_header_value().unwrap()).collect();
-
-                if str_vec.len() != 2 {
-                    return Err(HCLDataError::ParsingError(format!("error in combine-method '{:?}'. Input-attributes array doesn't have exactly two entries.", self)));
-                }
-                self.input = Option::from(str_vec);
-            }
-            _ => {
-                return Err(HCLDataError::ParsingError(format!("combine-methods: '{:?}' input-attribute is not an array", self)));
-            }
+        if input.len() != 2 {
+            return Err(HCLDataError::ParsingError(format!("error in combine-method: Input array '{:?}' doesn't have exactly two entries.", input)))
         }
+        self.input = Option::from(input);
         Ok(())
     }
     pub(crate) fn add_separator(&mut self, separator: String) -> Result<(), HCLDataError>{
@@ -86,7 +77,8 @@ impl WrapperCombineMethod {
         for attribute in self.0.attributes() {
             match attribute.key.as_str() {
                 "input" => {
-                    transient_structure.add_input(attribute.expr.to_owned())?;
+                    let input_vec = parse_input(attribute.expr().to_owned())?;
+                    transient_structure.add_input(input_vec)?;
                 }
                 "separator" => {
                     transient_structure.add_separator(attribute.expr.to_string_2()?)?;
@@ -108,6 +100,20 @@ impl WrapperCombineMethod {
         Ok(combine_method)
     }
 }
+
+fn parse_input(input: Expression) -> Result<Vec<HeaderValue>, HCLDataError>{
+    match input {
+        Expression::Array(array) => {
+            let str_vec:Vec<HeaderValue> = array.iter().map(|expr|expr.to_header_value().unwrap()).collect();
+
+            Ok(str_vec)
+        }
+        _ => {
+            Err(HCLDataError::ParsingError(format!("combine-methods: '{:?}' input-attribute is not an array", input)))
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CombineMethod{
     pub input: Vec<HeaderValue>,
@@ -142,7 +148,7 @@ impl CombineMethod {
 mod test {
 
     use hcl::block;
-    use crate::hcl_info::methods_domain::combine_method::WrapperCombineMethod;
+    use crate::parse_info::methods_domain::combine_method::WrapperCombineMethod;
 
     #[test]
     fn test_combine_method() {

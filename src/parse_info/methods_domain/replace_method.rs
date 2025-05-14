@@ -1,10 +1,10 @@
 use hcl::Expression;
 use crate::expression_trait::ExpressionTransform;
-use crate::hcl_info::errors::HCLDataError;
-use crate::hcl_info::header_value::{HeaderMethods, HeaderValue};
-use crate::hcl_info::methods_domain::behavior_type::BehaviorType;
-use crate::hcl_info::methods_domain::target_type::TargetType;
-use crate::hcl_info::methods_domain::wrapper_trait::Wrapper;
+use crate::parse_info::errors::HCLDataError;
+use crate::parse_info::header_value::{HeaderMethods, HeaderValue};
+use crate::parse_info::methods_domain::behavior_type::BehaviorType;
+use crate::parse_info::methods_domain::target_type::TargetType;
+use crate::parse_info::methods_domain::wrapper_trait_block::Wrapper;
 
 pub struct WrapperReplaceMethod(pub(crate) hcl::Block);
 
@@ -166,7 +166,7 @@ impl ReplaceMethod {
 #[cfg(test)]
 mod test {
     use hcl::block;
-    use crate::hcl_info::methods_domain::replace_method::WrapperReplaceMethod;
+    use crate::parse_info::methods_domain::replace_method::WrapperReplaceMethod;
 
     #[test]
     fn test_replace_method() {

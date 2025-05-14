@@ -1,14 +1,17 @@
-use hcl::{BlockLabel, Expression};
-use crate::hcl_info::domain::assignments::{Assignments, AssignmentsWrapper};
-use crate::hcl_info::errors::HCLDataError;
-use crate::hcl_info::transformations::{Transformations, TransformationsWrapper};
-use crate::hcl_info::wrapper_trait::Wrapper;
+use std::collections::HashMap;
+use hcl::{Block, BlockLabel, Expression};
+use crate::parse_info::domain::assignments::{Assignments, AssignmentsWrapper};
+use crate::parse_info::domain::supplements::{Supplements, SupplementsWrapper};
+use crate::parse_info::errors::HCLDataError;
+use crate::parse_info::transformations::{Transformations, TransformationsWrapper};
+use crate::parse_info::wrapper_trait::Wrapper;
 
 pub struct SheetInfo {
     pub sheet_nr: usize,
     pub resource_name: String,
     pub assignments: Assignments,
-    pub transformations: Option<Transformations>
+    pub transformations: Option<Transformations>,
+    pub supplements: Supplements
 }
 impl SheetInfo {
     fn new(transient_sheet_info: TransientSheetInfo) -> Self {
@@ -16,7 +19,8 @@ impl SheetInfo {
             sheet_nr: transient_sheet_info.sheet_number,
             resource_name: transient_sheet_info.resource_name.unwrap(),
             assignments: transient_sheet_info.assignments.unwrap(),
-            transformations: transient_sheet_info.transformations
+            transformations: transient_sheet_info.transformations,
+            supplements: transient_sheet_info.supplements.unwrap()
         }
     }
 }
@@ -26,6 +30,7 @@ struct TransientSheetInfo {
     resource_name: Option<String>,
     assignments: Option<Assignments>,
     transformations: Option<Transformations>,
+    supplements: Option<Supplements>
 }
 
 impl TransientSheetInfo {
@@ -35,6 +40,7 @@ impl TransientSheetInfo {
             resource_name: None,
             assignments: None,
             transformations: None,
+            supplements: None,
         }
     }
     pub(crate) fn add_res_name(&mut self, res_name: String) -> Result<(), HCLDataError> {
@@ -42,6 +48,13 @@ impl TransientSheetInfo {
             return Err(HCLDataError::InputError(format!("multiple resource-names: First: '{}', Second: '{}'", self.resource_name.as_ref().unwrap(), res_name)));
         }
         self.resource_name = Option::Some(res_name);
+        Ok(())
+    }
+    pub(crate) fn add_supplement(&mut self, supplements: Supplements) -> Result<(), HCLDataError> {
+        if self.supplements.is_some() {
+            return Err(HCLDataError::InputError(format!("multiple supplements: First: '{:?}', Second: '{:?}'", self.supplements, supplements)));
+        }
+        self.supplements = Some(supplements);
         Ok(())
     }
     pub(crate) fn add_assignments(&mut self, assignments: Assignments) -> Result<(), HCLDataError> {
@@ -97,6 +110,11 @@ impl SheetInfoWrapper {
                     let assignments = AssignmentsWrapper(block.to_owned()).to_assignments()?;
                     transient_sheet_info.add_assignments(assignments)?;
                 }
+                "supplements" => {
+                    block.no_attributes()?;
+                    let supplements = SupplementsWrapper(block.to_owned()).to_supplements()?;
+                    transient_sheet_info.add_supplement(supplements)?;
+                }
                 "transform" => {
                     let transformations = TransformationsWrapper(block.to_owned()).to_transformations()?;
                     transient_sheet_info.add_transformations(transformations)?;
@@ -129,3 +147,5 @@ impl SheetInfoWrapper {
         })
     }
 }
+
+

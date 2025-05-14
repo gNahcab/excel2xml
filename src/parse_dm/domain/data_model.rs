@@ -14,6 +14,7 @@ pub struct DataModel {
     pub properties: Vec<Property>,
     pub resources: Vec<DMResource>,
     pub shortcode: String,
+    pub shortname: String,
     pub lists: HashMap<String, DaSCHList>,
 }
 impl DataModel {
@@ -21,6 +22,7 @@ impl DataModel {
         ontologies: Vec<Ontology>,
         properties: Vec<Property>,
         resources: Vec<DMResource>,
+        shortname: String,
         shortcode: String,
         lists: HashMap<String, DaSCHList>,
 
@@ -31,6 +33,7 @@ impl DataModel {
             properties,
             resources,
             shortcode,
+            shortname,
             lists,
         }
     }
@@ -48,8 +51,10 @@ impl TryFrom<Value> for DataModel {
         let object = json_value.as_object().expect("expecting a json object on top, but not found: data model malformed");
         let project = object.get("project").expect("expecting a project").as_object().expect("project should be a json-object");
         let mut data_model_builder: DataModelBuilder = DataModelBuilder::new();
-        let shortcode = shortcode(project)?;
+        let shortcode = extract_string_from_project(project, "shortcode")?;
         data_model_builder.add_shortcode(shortcode);
+        let shortname = extract_string_from_project(project, "shortname")?;
+        data_model_builder.add_shortname(shortname);
 
 
         for (project_name, project) in project.iter() {
@@ -82,19 +87,19 @@ impl TryFrom<Value> for DataModel {
     }
 }
 
-fn shortcode(project: &Map<String, Value>) -> Result<String, DataModelError> {
-    let shortcode = match   project.get("shortcode") {
-        None => {return Err(DataModelError::ParsingError("Shortcode not found in project".to_string()))}
-        Some(shortcode) => {
-            match shortcode {
-                Value::String(shortcode) => {shortcode}
+fn extract_string_from_project(project: &Map<String, Value>, key: &str) -> Result<String, DataModelError> {
+    let value = match   project.get(key) {
+        None => {return Err(DataModelError::ParsingError(format!("Key '{}' not found in project", key)))}
+        Some(value) => {
+            match value {
+                Value::String(str_value) => {str_value}
                 _ => {
-                    return Err(DataModelError::ParsingError(format!("Expected a String for shortcode but found something else: '{}'", shortcode)));
+                    return Err(DataModelError::ParsingError(format!("Expected a String for '{}' but found something else: '{}'", key, value)));
                 }
             }
         }
     };
-    Ok(shortcode.to_owned())
+    Ok(value.to_owned())
 }
 
 #[cfg(test)]

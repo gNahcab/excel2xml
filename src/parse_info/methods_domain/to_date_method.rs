@@ -1,10 +1,10 @@
 use hcl::Expression;
 use crate::expression_trait::ExpressionTransform;
-use crate::hcl_info::errors::HCLDataError;
-use crate::hcl_info::header_value::{HeaderMethods, HeaderValue};
-use crate::hcl_info::methods_domain::date_pattern::{DatePattern, WrapperDatePattern};
-use crate::hcl_info::methods_domain::date_type::DateType;
-use crate::hcl_info::methods_domain::wrapper_trait::Wrapper;
+use crate::parse_info::errors::HCLDataError;
+use crate::parse_info::header_value::{HeaderMethods, HeaderValue};
+use crate::parse_info::methods_domain::date_pattern::{DatePattern, WrapperDatePattern};
+use crate::parse_info::methods_domain::date_type::DateType;
+use crate::parse_info::methods_domain::wrapper_trait_block::Wrapper;
 
 pub struct WrapperToDateMethod(pub(crate) hcl::Block);
 
@@ -119,7 +119,7 @@ impl ToDateMethod {
 #[cfg(test)]
 mod test {
     use hcl::block;
-    use crate::hcl_info::methods_domain::to_date_method::WrapperToDateMethod;
+    use crate::parse_info::methods_domain::to_date_method::WrapperToDateMethod;
 
     #[test]
     fn test_replace_method() {

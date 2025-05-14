@@ -54,7 +54,6 @@ pub fn separate_ontology_properties_resources(onto_object: Map<String, Value>) -
     }
     transient_ontology.add_name(name.unwrap().to_string());
     for (key, value) in onto_object.iter() {
-
         match key.as_str() {
             "label" => {
                 let label = match value {

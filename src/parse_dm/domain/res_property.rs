@@ -1,10 +1,11 @@
 use serde_json::Value;
+use crate::parse_dm::domain::cardinality::{to_cardinality, Cardinality};
 use crate::parse_dm::errors::DataModelError;
 
 #[derive(Debug, PartialEq)]
 pub struct ResProperty {
     pub(crate) propname: String,
-    cardinality: String,
+    pub (crate) cardinality: Cardinality,
 }
 
 impl ResProperty {
@@ -18,7 +19,7 @@ impl ResProperty {
 
 struct TransientResProperty {
     propname: Option<String>,
-    cardinality: Option<String>,
+    cardinality: Option<Cardinality>,
 }
 impl TransientResProperty {
     fn new() -> Self {
@@ -27,8 +28,8 @@ impl TransientResProperty {
     fn add_propname(&mut self, name: &str) {
         self.propname = Option::from(name.to_string());
     }
-    fn add_cardinality(&mut self, name: &str) {
-        self.cardinality = Option::from(name.to_string());
+    fn add_cardinality(&mut self, name: Cardinality) {
+        self.cardinality = Option::from(name);
     }
     fn is_complete(&self) -> Result<(), DataModelError> {
         // complete if propname and cardinality exist
@@ -36,7 +37,7 @@ impl TransientResProperty {
             return Err(DataModelError::ParsingError(format!("propname not found for res-property")));
         }
         if self.cardinality.is_none() {
-            return Err(DataModelError::ParsingError(format!("cardinality not found for res-property: {}", self.cardinality.as_ref().unwrap())));
+            return Err(DataModelError::ParsingError(format!("cardinality not found for res-property: {:?}", self.cardinality.as_ref().unwrap())));
         }
         Ok(())
     }
@@ -52,11 +53,12 @@ impl ResPropertyWrapper {
                 "propname" => {
                     let propname_raw = value.as_str().expect("propname should be a string");
                     let (propname, ontology) = separate_ontology_and_propname(propname_raw)?;
-                    // add ontology to prop_name of resource: can be added later
+                    //todo: add ontology to prop_name of resource: can be added later
                     transient.add_propname(propname);
                 }
                 "cardinality" => {
                     let cardinality = value.as_str().expect("cardinality should be a string");
+                    let cardinality = to_cardinality(cardinality)?;
                     transient.add_cardinality(cardinality);
                 }
                 _ => {

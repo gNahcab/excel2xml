@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use crate::hcl_info::domain::command::ParseInfoCommand;
+use crate::parse_info::domain::command::ParseInfoCommand;
 
 pub enum CommandOrPath {
     Path(PathBuf),

@@ -1,8 +1,8 @@
 use hcl::{BlockLabel, Body};
 use regex::Regex;
-use crate::hcl_info::errors::HCLDataError;
-use crate::hcl_info::methods_domain::date_bricks::{DateBricks, DateInfo, DateName, WrapperDateBricks};
-use crate::hcl_info::methods_domain::wrapper_trait::Wrapper;
+use crate::parse_info::errors::HCLDataError;
+use crate::parse_info::methods_domain::date_bricks::{DateBricks, DateInfo, DateName, WrapperDateBricks};
+use crate::parse_info::methods_domain::wrapper_trait_block::Wrapper;
 
 pub struct WrapperDatePattern(pub(crate) hcl::Block);
 
