@@ -6,8 +6,8 @@ use crate::parse_info::methods_domain::wrapper_trait_block::Wrapper;
 
 #[derive(Debug, Clone)]
 pub struct AlterMethod{
-    prefix: Option<String>,
-    suffix: Option<String>,
+    pub(crate) prefix: Option<String>,
+    pub(crate) suffix: Option<String>,
     pub(crate) input: HeaderValue,
     pub(crate) output: String
 }

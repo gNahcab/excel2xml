@@ -1,4 +1,3 @@
-use crate::parse_xlsx::errors::ExcelDataError::CellError;
 
 #[derive(Debug, PartialEq)]
 pub enum ExcelDataError {

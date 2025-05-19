@@ -140,6 +140,7 @@ fn add_shortcode_default_ontology_attributes(knora: &mut XMLElement, shortcode: 
 
 fn bitstream_child(resource: &Instance) -> XMLElement {
     let mut bitstream = XMLElement::new("bitstream");
+    bitstream.add_text(resource.bitstream.as_ref().unwrap());
     if resource.bitstream_permissions.is_some() {
         bitstream.add_attribute("permissions",resource.bitstream_permissions.as_ref().unwrap())
     }

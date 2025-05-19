@@ -12,6 +12,7 @@ use crate::parse_info::methods_domain::lower_upper_method::{LowerMethod, UpperMe
 use crate::parse_info::methods_domain::permissions_create::PermissionsCreate;
 use crate::parse_info::methods_domain::replace_method::ReplaceMethod;
 use crate::parse_info::methods_domain::step::{StepMethod};
+use crate::parse_info::methods_domain::to_alter_method::AlterMethod;
 use crate::parse_info::methods_domain::to_date_method::ToDateMethod;
 use crate::parse_xlsx::domain::data_col::{DataCol, TransientDataCol};
 use crate::parse_xlsx::domain::data_row::DataRow;
@@ -49,6 +50,23 @@ fn _to_date(data_col: &&DataCol, date_patterns: &Vec<DatePattern>, date_type: &D
     Ok(new_col)
 }
 
+pub fn perform_alter(alter_method: &AlterMethod, col_nr_to_cols: &HashMap<usize, DataCol>, header_to_col_nr: &HashMap<String, usize>) -> Result<DataCol, HCLDataError> {
+    let header_number = find_header_number(&alter_method.input, col_nr_to_cols, header_to_col_nr)?;
+    let data_col = &col_nr_to_cols.get(&header_number).unwrap();
+    let mut new_col = vec![];
+    for value in data_col.col.iter() {
+        let mut new_value = "".to_string();
+        if alter_method.prefix.is_some() {
+            new_value += alter_method.prefix.as_ref().unwrap().as_str();
+        }
+        new_value += value.as_str();
+        if alter_method.suffix.is_some() {
+            new_value += alter_method.suffix.as_ref().unwrap().as_str();
+        }
+        new_col.push(new_value);
+    }
+    Ok(DataCol::new(new_col, alter_method.output.to_owned()))
+}
 pub fn perform_create(create_method: &CreateMethod, length: usize) -> DataCol {
     match create_method {
         CreateMethod::IntegerCreateMethod(int_create) => {
@@ -60,8 +78,6 @@ pub fn perform_create(create_method: &CreateMethod, length: usize) -> DataCol {
 
         }
     }
-
-
 }
 
 fn perform_permissions_create(permissions_create: &PermissionsCreate, length: usize) -> DataCol {
