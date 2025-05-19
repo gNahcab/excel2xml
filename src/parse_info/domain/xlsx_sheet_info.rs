@@ -11,7 +11,7 @@ pub struct SheetInfo {
     pub resource_name: String,
     pub assignments: Assignments,
     pub transformations: Option<Transformations>,
-    pub supplements: Supplements
+    pub supplements: Option<Supplements>
 }
 impl SheetInfo {
     fn new(transient_sheet_info: TransientSheetInfo) -> Self {
@@ -20,7 +20,7 @@ impl SheetInfo {
             resource_name: transient_sheet_info.resource_name.unwrap(),
             assignments: transient_sheet_info.assignments.unwrap(),
             transformations: transient_sheet_info.transformations,
-            supplements: transient_sheet_info.supplements.unwrap()
+            supplements: transient_sheet_info.supplements
         }
     }
 }

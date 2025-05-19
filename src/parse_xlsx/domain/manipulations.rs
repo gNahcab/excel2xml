@@ -15,7 +15,6 @@ use crate::parse_info::methods_domain::step::{StepMethod};
 use crate::parse_info::methods_domain::to_alter_method::AlterMethod;
 use crate::parse_info::methods_domain::to_date_method::ToDateMethod;
 use crate::parse_xlsx::domain::data_col::{DataCol, TransientDataCol};
-use crate::parse_xlsx::domain::data_row::DataRow;
 use crate::parse_xlsx::domain::data_domain::date_period::DatePeriodWrapper;
 
 pub fn perform_identify(key_value_map: HashMap<String, String>, base_col: &Vec<String>) -> Vec<String> {

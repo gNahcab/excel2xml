@@ -157,7 +157,13 @@ impl TryFrom<hcl::Body> for ParseInformationDraft {
             match block.identifier.as_str() {
                 "xlsx" => {
                     let xlsx_workbook: XLSXWorbookInfo = XLSXWorkbookInfoWrapper {0: block.to_owned().to_owned()}.to_wb_info()?;
-                    transient_parse_info.add_res_name_to_suppl(xlsx_workbook.sheet_infos.iter().map(|(sheet_nr, sheet_info)| (sheet_info.resource_name.to_owned(), sheet_info.supplements.to_owned())).collect())?;
+
+                    let res_name_to_suppl = xlsx_workbook.sheet_infos
+                        .iter()
+                        .filter(|(sheet_nr, sheet_info)| sheet_info.supplements.is_some())
+                        .map(|(sheet_nr, sheet_info)| (sheet_info.resource_name.to_owned(), sheet_info.supplements.as_ref().unwrap().to_owned()))
+                        .collect::<Vec<(String, Supplements)>>();
+                    transient_parse_info.add_res_name_to_suppl(res_name_to_suppl)?;
                     transient_parse_info.add_xlsx_workbook(xlsx_workbook)?;
                 }
                 _ => {

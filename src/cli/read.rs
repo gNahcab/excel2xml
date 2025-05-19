@@ -42,7 +42,6 @@ pub fn read_in() -> () {
         Some(Commands::XML {transform}) => {
             println!("[Xml] transform: {:?}" , transform);
             excel2xml(transform);
-
         },
         None => println!("Command '{:?}' does not exist: Commands are 'xml'.", cli.command),
     }

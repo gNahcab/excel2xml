@@ -133,7 +133,7 @@ impl TransientStructureIdentifyMethod {
     }
     pub(crate) fn add_input(&mut self, input: String) -> Result<(), HCLDataError> {
         if self.input.is_some() {
-            return Err(HCLDataError::ParsingError(format!("identify-method: Multiple input-attributes. First: {}, second: {}", &self.input.as_ref().unwrap(), input)))
+            return Err(HCLDataError::ParsingError(format!("identify-method: Multiple input-attributes. First: {}, second: {}", &self.input.as_ref().unwrap(), input)));
         }
         self.input = Some(input);
         Ok(())

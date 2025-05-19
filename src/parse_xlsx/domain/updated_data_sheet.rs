@@ -97,7 +97,7 @@ fn identify_col(other_expaneded_sheet: &ExpandedDataSheet, identify_method: &Ide
     let key_to_value = _key_to_value_map(other_expaneded_sheet, &identify_method)?;
     let base_pos = match header_to_col_nr.get(identify_method.input.as_str()) {
         None => {
-            return Err(HCLDataError::ParsingError(format!("Identify: cannot find input header: '{}'. Possible headers: {:?}", identify_method.output, header_to_col_nr.iter().map(|(header, _)|header).collect::<Vec<_>>())))
+            return Err(HCLDataError::ParsingError(format!("Identify: cannot find input header: '{}'. Possible headers: {:?}", identify_method.input, header_to_col_nr.iter().map(|(header, _)|header).collect::<Vec<_>>())))
         }
         Some(number) => {number}
     };
