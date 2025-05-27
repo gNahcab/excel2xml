@@ -11,6 +11,7 @@ mod cli;
 mod operations;
 mod expression_trait;
 mod canonicalize_path;
+mod api;
 
 use std::error::Error;
 use read_xlsx::extract::Extract;

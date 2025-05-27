@@ -45,7 +45,7 @@ pub fn sheets<P: AsRef<Path> + std::fmt::Debug>(folder_path: P, parse_informatio
             let sheet_info = match workbook.sheet_infos.get(&(pos + 1)) {
                 None => {
                     // worksheet doesn't exist in parse-information
-                    continue}
+                    continue }
                 Some(sheet_info) => {sheet_info}
             };
 

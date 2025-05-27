@@ -11,4 +11,9 @@ hcl-rs = "0.18.0" # HCL parser
 rust_decimal = "1.36.0"
 regex = "1.11.0"
 log = "0.4.22"
-clap = { version = "4.4.0", features = ["derive"] } # command-line parser
+clap = { version = "4.4.0", features = ["derive"] }
+percent-encoding = "2.3.1" # command-line parser
+reqwest = { version = "0.12.12", features = ["json"] }
+dotenv = "0.15.0"
+serde = { version = "1.0.209", features = ["derive"] }
+tokio = { version = "1.45.0", features = ["rt", "rt-multi-thread", "macros"] }

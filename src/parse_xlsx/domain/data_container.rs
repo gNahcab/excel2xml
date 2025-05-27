@@ -30,6 +30,10 @@ impl DataContainerWrapper {
         let mut data_instances: Vec<Instance> = vec![];
         let (rows, col_nr_to_row_nr) = _to_rows(&self.0.col_nr_to_cols);
         let supplements = parse_info.res_name_to_supplements.get(self.0.res_name.as_str());
+        let resource = match data_model.resources.iter().find(|resource| resource.name.eq(&self.0.res_name)) {
+            None => { return Err(ExcelDataError::ParsingError(format!("not found resource with name '{}' in data-model with resources: {:?}", self.0.res_name, data_model.resources.iter().map(|resource| &resource.name).collect::<Vec<_>>()))) }
+            Some(dm_resource) => { dm_resource }
+        };
         /*
         let supplements = match parse_info.res_name_to_supplements.get(self.0.res_name.as_str()) {
             None => {
@@ -39,17 +43,17 @@ impl DataContainerWrapper {
         };*/
 
         let(col_nr_to_propname, col_nr_to_prop_suppl, col_nr_to_res_suppl, col_nr_to_id_label) = discern_label_id_propnames_and_supplements(&self.0.header_to_col_nr, &data_model.properties, supplements)?;
-
         let (row_nr_to_propname, row_nr_to_prop_suppl, row_nr_to_res_suppl, row_nr_to_id_label) = change_col_nr_to_row_nr(col_nr_to_propname, col_nr_to_prop_suppl, col_nr_to_res_suppl, col_nr_to_row_nr, col_nr_to_id_label);
 
-        let super_field = &data_model.resources.iter().find(|dm_res|dm_res.name.eq(&self.0.res_name)).unwrap().super_field;
-        let data_header = DataHeaderWrapper(self.0.header_to_col_nr.to_owned()).to_data_header(&data_model, &self.0.res_name, &row_nr_to_propname, &row_nr_to_prop_suppl, &row_nr_to_res_suppl, &row_nr_to_id_label)?;
+        let data_header = DataHeaderWrapper(self.0.header_to_col_nr.to_owned()).to_data_header(&resource, &row_nr_to_propname, &row_nr_to_prop_suppl, &row_nr_to_res_suppl, &row_nr_to_id_label)?;
         for row in rows.iter() {
-            data_instances.push(InstanceWrapper(row.to_owned()).to_instance(&data_model, &parse_info.separator, &row_nr_to_propname, &row_nr_to_prop_suppl, &row_nr_to_res_suppl, &row_nr_to_id_label, super_field, parse_info.set_permissions)?);
+            data_instances.push(InstanceWrapper(row.to_owned()).to_instance(&data_model, &parse_info.separator, &row_nr_to_propname, &row_nr_to_prop_suppl, &row_nr_to_res_suppl, &row_nr_to_id_label, &resource.super_field, parse_info.set_permissions)?);
         }
         Ok(DataContainer::new(data_header, data_instances, self.0.res_name.to_owned()))
     }
 }
+
+
 fn change_col_nr_to_row_nr(col_nr_to_propname: HashMap<usize, String>, col_nr_to_prop_suppl: HashMap<usize, PropSupplement>, col_nr_to_res_suppl: HashMap<usize, ResourceSupplement>, col_nr_to_row_nr: HashMap<usize, usize>, col_nr_to_id_label: HashMap<usize, Header>) -> (HashMap<usize, String>, HashMap<usize, PropSupplement>, HashMap<usize, ResourceSupplement>, HashMap<usize, Header>) {
     (
         col_nr_to_propname.iter().map(|(col_nr, propname)| (col_nr_to_row_nr.get(col_nr).unwrap().to_owned(), propname.to_owned())).collect(),

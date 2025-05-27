@@ -94,10 +94,12 @@ impl TransientDataHeader {
         self.propname_to_pos.insert(propname, pos);
         Ok(())
     }
-    fn check_field(&self, super_field: &SuperField) -> Result<(), ExcelDataError> {
+    fn check_field(&self, super_field: &SuperField, res_name: &String) -> Result<(), ExcelDataError> {
         match super_field {
             SuperField::Resource => {
-                // bitstream not necessary
+                if self.bitstream.is_some() || self.bitstream_permissions.is_some() {
+                    return Err(ExcelDataError::InputError(format!("Resource '{}' has bitstream: '{:?}' or bitstream-permissions: '{:?}', both is not allowed, since non-Representation cannot bear any media-files", res_name, self.bitstream, self.bitstream_permissions)));
+                }
             }
             SuperField::MovingImageRepresentation |
             SuperField::StillImageRepresentation |
@@ -113,14 +115,14 @@ impl TransientDataHeader {
         Ok(())
 
     }
-    pub(crate) fn is_complete(&self, super_field: &SuperField) -> Result<(), ExcelDataError> {
+    pub(crate) fn is_complete(&self, super_field: &SuperField, res_name: &String) -> Result<(), ExcelDataError> {
         if self.id.is_none() {
             return Err(ExcelDataError::InputError(format!("Cannot find id for transient-data-header: {:?}", self)));
         }
         if self.label.is_none() {
             return Err(ExcelDataError::InputError(format!("Cannot find label for transient-data-header: {:?}", self)));
         }
-        self.check_field(super_field)?;
+        self.check_field(super_field, res_name)?;
         Ok(())
 
     }

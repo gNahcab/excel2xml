@@ -103,6 +103,7 @@ fn identify_col(other_expaneded_sheet: &ExpandedDataSheet, identify_method: &Ide
     };
     let base_col = &col_nr_to_cols.get(base_pos).unwrap().col;
     let new_col = perform_identify(key_to_value, base_col);
+    println!("new-identify: {:?}", new_col);
     Ok(DataCol::new(new_col, identify_method.output.to_owned()))
 }
 

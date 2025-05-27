@@ -135,7 +135,7 @@ impl DaschValueFieldWrapper {
         self.check_values(curr_prop, data_model)?;
         let mut dasch_values = vec![];
         for (pos, value) in self.0.iter().enumerate() {
-            let dasch_value = WrapperDaschValue(value.to_owned()).to_dasch_value(pos, maybe_suppl_value, &curr_prop.object, set_permissions)?;
+            let dasch_value = WrapperDaschValue(value.to_owned()).to_dasch_value(pos, maybe_suppl_value, &curr_prop.gui_element, set_permissions)?;
             dasch_values.push(dasch_value);
         }
         Ok(DaschValueField::new(dasch_values, prop_name.to_owned()))

@@ -25,7 +25,7 @@ pub struct DataHeader {
 pub(crate) struct DataHeaderWrapper(pub(crate) HashMap<String, usize>);
 
 impl DataHeaderWrapper {
-    pub(crate) fn to_data_header(&self, data_model: &DataModel, res_name: &String, row_nr_to_propname: &HashMap<usize, String>, row_nr_to_prop_suppl: &HashMap<usize, PropSupplement>, row_nr_to_res_suppl: &HashMap<usize, ResourceSupplement>, row_nr_to_id_label: &HashMap<usize, Header>) -> Result<DataHeader, ExcelDataError> {
+    pub(crate) fn to_data_header(&self, resource: &DMResource, row_nr_to_propname: &HashMap<usize, String>, row_nr_to_prop_suppl: &HashMap<usize, PropSupplement>, row_nr_to_res_suppl: &HashMap<usize, ResourceSupplement>, row_nr_to_id_label: &HashMap<usize, Header>) -> Result<DataHeader, ExcelDataError> {
         let mut transient_data_header = TransientDataHeader::new();
         for (pos, id_label) in row_nr_to_id_label {
             match id_label {
@@ -37,14 +37,10 @@ impl DataHeaderWrapper {
                 }
             }
         }
-        let resource = match data_model.resources.iter().find(|resource| resource.name.eq(res_name)) {
-            None => { return Err(ExcelDataError::ParsingError(format!("not found resource with name '{}' in data-model with resources: {:?}", res_name, data_model.resources.iter().map(|resource| &resource.name).collect::<Vec<_>>()))) }
-            Some(dm_resource) => { dm_resource }
-        };
         add_propnames(&mut transient_data_header, &row_nr_to_propname, resource)?;
         add_props_of_res(&mut transient_data_header, &row_nr_to_res_suppl)?;
         add_prop_suppl(&mut transient_data_header, &row_nr_to_prop_suppl);
-        transient_data_header.is_complete(&resource.super_field)?;
+        transient_data_header.is_complete(&resource.super_field, &resource.name)?;
         Ok(DataHeader::new(transient_data_header))
     }
 }

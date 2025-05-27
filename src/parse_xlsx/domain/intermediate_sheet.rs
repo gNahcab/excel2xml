@@ -46,11 +46,17 @@ impl IntermediateSheetWrapper {
         }
         for (col_id, col) in cols.iter().enumerate() {
             let (head, sliced_col) = col.split_at(1);
-            let data_col: DataCol = DataCol::new(sliced_col.to_vec(), head[0].to_owned());
+            let head = clean_string(&head[0]);
+            let data_col: DataCol = DataCol::new(sliced_col.to_vec(), head);
             data_sheet.add_col(col_id, data_col);
         }
         Ok(data_sheet)
     }
+}
+
+fn clean_string(value: &String) -> String {
+    // remove whitespace and \n (new line)
+    value.trim().replace("\n", "")
 }
 
 fn parse_data_to_string(value: &Data) -> Result<String, ExcelDataError> {

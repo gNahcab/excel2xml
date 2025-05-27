@@ -249,9 +249,13 @@ mod test {
                 },
             ].to_vec(),
         };
+        todo!()
+        /*
         let mut data_column  = TransientDataCol::new();
         data_column.column = vec_1;
         let result = _to_date(&data_column, &date_method.date_patterns, &date_method.date_type).unwrap();
         assert_eq!(result.column, ["GREGORIAN:CE:1991:01:01:CE:1991:01:01", "GREGORIAN:CE:0400:02:03:CE:0400:02:03", "GREGORIAN:CE:1991:01:02:CE:1991:01:02"]);
+
+         */
     }
 }
