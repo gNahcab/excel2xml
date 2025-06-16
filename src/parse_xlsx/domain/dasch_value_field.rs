@@ -185,7 +185,7 @@ impl DaschValueFieldWrapper {
                     let _ = match value.parse::<usize>() {
                         Ok(integer) => { integer }
                         Err(error) => {
-                            return Err(ExcelDataError::InputError(format!("cannot parse '{}' to integer: {:?}", value, error)));
+                            return Err(ExcelDataError::InputError(format!("cannot parse '{}' to integer: {:?} in {:?}", value, error, curr_prop)));
                         }
                     };
                 }

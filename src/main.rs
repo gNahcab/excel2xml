@@ -12,6 +12,7 @@ mod operations;
 mod expression_trait;
 mod canonicalize_path;
 mod api;
+mod write_hcl;
 
 use std::error::Error;
 use read_xlsx::extract::Extract;

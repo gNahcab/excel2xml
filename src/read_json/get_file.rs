@@ -2,9 +2,9 @@ use std::fs::File;
 use std::io::{BufReader};
 use std::path::Path;
 use serde_json::Value;
-use crate::errors::Excel2XmlError;
+use crate::read_json::errors::ReadJsonError;
 
-pub fn read_from_json<P: AsRef<Path>>(path: P) -> Result<Value, Excel2XmlError> {
+pub fn read_from_json<P: AsRef<Path>>(path: P) -> Result<Value, ReadJsonError> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
     let json_file: serde_json::Value =

@@ -1,9 +1,7 @@
 use std::path::{Path, PathBuf};
 use calamine::{Data, Range};
-use crate::errors::Excel2XmlError;
-use crate::errors::Excel2XmlError::HCLDataError;
 use crate::parse_info::domain::parse_info::ParseInformation;
-use crate::read_xlsx::extract::Extract;
+use crate::read_xlsx::errors::ReadXlsxError;
 use crate::read_xlsx::get_file::read_xlsx;
 
 #[derive(Clone)]
@@ -19,7 +17,7 @@ impl Sheet {
         Sheet {res_name, rel_path, sheet_info_nr, table}
     }
 }
-pub fn sheets<P: AsRef<Path> + std::fmt::Debug>(folder_path: P, parse_information: &ParseInformation) -> Result<Vec<Sheet>, Excel2XmlError> {
+pub fn sheets<P: AsRef<Path> + std::fmt::Debug>(folder_path: P, parse_information: &ParseInformation) -> Result<Vec<Sheet>, ReadXlsxError> {
     let read_dir = Path::read_dir(folder_path.as_ref())?;
     let paths = read_dir
         // remove Errors
@@ -54,7 +52,7 @@ pub fn sheets<P: AsRef<Path> + std::fmt::Debug>(folder_path: P, parse_informatio
         }
     }
     if sheets.is_empty() {
-        return Err(Excel2XmlError::InputError(format!("cannot find any sheets that match the described sheet in HCL. The folder '{:?}' doesn't seem to contain the files.", folder_path)));
+        return Err(ReadXlsxError::PathNotFound(format!("cannot find any sheets that match the described sheet in HCL. The folder '{:?}' doesn't seem to contain the files.", folder_path)));
     }
     Ok(sheets)
 }

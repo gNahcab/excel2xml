@@ -7,6 +7,7 @@ use crate::parse_info::domain::parse_info::ParseInformation;
 use crate::parse_xlsx::domain::data_container::DataContainer;
 use crate::parse_xlsx::domain::instance::Instance;
 use crate::parse_xlsx::errors::ExcelDataError;
+use crate::write_xml::errors::WriteXMLError;
 use crate::write_xml::xml_permissions::add_default_permissions;
 
 pub fn write_xml_example() {
@@ -26,7 +27,7 @@ pub fn write_xml_example() {
     person.write(file).unwrap();
 }
 
-pub fn write_xml(data_container: &DataContainer, data_model: &DataModel, parse_info: &ParseInformation) -> Result<(), Excel2XmlError> {
+pub fn write_xml(data_container: &DataContainer, data_model: &DataModel, parse_info: &ParseInformation) -> Result<(), WriteXMLError> {
     let path = new_path(&data_container.res_name);
     let file = File::create(path.as_str())?;
     let mut knora = XMLElement::new("knora");
@@ -47,7 +48,7 @@ pub fn write_xml(data_container: &DataContainer, data_model: &DataModel, parse_i
         }
         for dasch_value_field in resource.dasch_value_fields.iter() {
             let property_object = &data_model.properties.iter().find(|property|property.name.eq(&dasch_value_field.propname)).unwrap().object;
-            let (xml_object, sub_xml_object) = xml_object_sub_object(property_object)?;
+            let (xml_object, sub_xml_object) = xml_object_sub_object(property_object);
             let mut prop_container = XMLElement::new(xml_object);
             let propname = ":".to_string() + dasch_value_field.propname.as_str();
             prop_container.add_attribute("name", propname);
@@ -85,43 +86,43 @@ fn new_path(res_name: &String) -> String {
     res_name.to_owned() + ".xml"
 }
 
-fn xml_object_sub_object(value_object: &ValueObject) -> Result<(String, String), ExcelDataError> {
+fn xml_object_sub_object(value_object: &ValueObject) -> (String, String) {
     match value_object {
         ValueObject::ListValue => {
-            Ok(("list-prop".to_string(), "list".to_string()))
+            ("list-prop".to_string(), "list".to_string())
         }
         ValueObject::TextValue => {
-            Ok(("text-prop".to_string(), "text".to_string()))
+            ("text-prop".to_string(), "text".to_string())
         }
         ValueObject::DateValue => {
-            Ok(("date-prop".to_string(), "date".to_string()))
+            ("date-prop".to_string(), "date".to_string())
         }
         ValueObject::UriValue => {
-            Ok(("uri-prop".to_string(), "uri".to_string()))
+            ("uri-prop".to_string(), "uri".to_string())
         }
         ValueObject::GeonameValue => {
-            Ok(("geoname-prop".to_string(), "geoname".to_string()))
+            ("geoname-prop".to_string(), "geoname".to_string())
         }
         ValueObject::DecimalValue => {
-            Ok(("decimal-prop".to_string(), "decimal".to_string()))
+            ("decimal-prop".to_string(), "decimal".to_string())
         }
         ValueObject::ColorValue => {
-            Ok(("color-prop".to_string(), "color".to_string()))
+            ("color-prop".to_string(), "color".to_string())
         }
         ValueObject::IntValue => {
-            Ok(("integer-prop".to_string(), "integer".to_string()))
+            ("integer-prop".to_string(), "integer".to_string())
         }
         ValueObject::BooleanValue => {
-            Ok(("boolean-prop".to_string(), "boolean".to_string()))
+            ("boolean-prop".to_string(), "boolean".to_string())
         }
         ValueObject::TimeValue => {
-            Ok(("time-prop".to_string(), "time".to_string()))
+            ("time-prop".to_string(), "time".to_string())
         }
         ValueObject::Representation => {
-            Ok(("resptr-prop".to_string(), "resptr".to_string()))
+            ("resptr-prop".to_string(), "resptr".to_string())
         }
         ValueObject::ResLinkValue(k) => {
-            Ok(("resptr-prop".to_string(), "resptr".to_string()))
+            ("resptr-prop".to_string(), "resptr".to_string())
         }
     }
 }

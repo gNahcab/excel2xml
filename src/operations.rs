@@ -16,7 +16,12 @@ use crate::parse_xlsx::domain::updated_data_sheet::{UpdatedDataSheet, UpdatedDat
 use crate::read_hcl::get_file::read_hcl_body;
 use crate::read_json::get_file::read_from_json;
 use crate::read_xlsx::sheet::{sheets, Sheet};
+use crate::write_hcl::write_hcl::write_hcl_based_on_xlsx;
 use crate::write_xml::write_xml::write_xml;
+
+pub fn write_hcl(excel_path: &PathBuf) {
+    write_hcl_based_on_xlsx(excel_path).unwrap();
+}
 
 pub fn excel2xml(hcl_path: &PathBuf) {
     // canonicalize paths
@@ -29,6 +34,7 @@ pub fn excel2xml(hcl_path: &PathBuf) {
     */
 
     // prepare
+    // todo: data-models should be loaded from resources/data_models, not from path specified in hcl (download from server, if data-model is not there or replace if update is indicated)
     let file = read_from_json(&parse_info.dm_path).unwrap();
     let data_model: DataModel = file.try_into().unwrap();
 
