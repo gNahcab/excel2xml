@@ -18,4 +18,5 @@ Cargo.lock
 # files
 .env
 .xlsx
-test.xml
+resources/data_models/*.json
+*.xml
