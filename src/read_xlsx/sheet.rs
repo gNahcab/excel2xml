@@ -35,8 +35,9 @@ pub fn sheets<P: AsRef<Path> + std::fmt::Debug>(folder_path: P, parse_informatio
                 // the file-name doesn't exist in parse-information
                 continue
             }
-            Some(workbook) => {
-                workbook}
+            Some(workbook_info) => {
+                workbook_info
+            }
         };
 
         for (pos, worksheet) in read_xlsx(PathBuf::from(path.path()))?.iter().enumerate() {

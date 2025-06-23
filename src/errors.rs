@@ -1,6 +1,8 @@
 use crate::parse_info::errors::HCLDataError;
 use crate::parse_xlsx::errors::ExcelDataError;
+use crate::path_operations::errors::PathOpError;
 use crate::read_hcl::errors::ReadHCLError;
+use crate::read_json::errors::ReadJsonError;
 use crate::write_hcl::errors::WriteHCLError;
 
 #[derive(Debug)]
@@ -13,7 +15,19 @@ pub enum Excel2XmlError {
     ExcelDataError(ExcelDataError),
     HCLDataError(HCLDataError),
     WriteHCLError(WriteHCLError),
-    ReadHCLError(ReadHCLError)
+    ReadHCLError(ReadHCLError),
+    ReadJsonError(ReadJsonError),
+    PathOpError(PathOpError),
+}
+impl From<PathOpError> for Excel2XmlError {
+    fn from(error: PathOpError) -> Self {
+        Excel2XmlError::PathOpError(error)
+    }
+}
+impl From<ReadJsonError> for Excel2XmlError {
+    fn from(error: ReadJsonError) -> Self {
+        Excel2XmlError::ReadJsonError(error)
+    }
 }
 impl From<ReadHCLError> for Excel2XmlError {
     fn from(error: ReadHCLError) -> Self {

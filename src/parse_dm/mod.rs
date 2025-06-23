@@ -1,2 +1,2 @@
 pub(crate) mod domain;
-mod errors;
+pub mod errors;

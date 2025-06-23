@@ -10,9 +10,9 @@ mod special_propnames;
 mod cli;
 mod operations;
 mod expression_trait;
-mod canonicalize_path;
 mod api;
 mod write_hcl;
+mod path_operations;
 
 use std::error::Error;
 use read_xlsx::extract::Extract;

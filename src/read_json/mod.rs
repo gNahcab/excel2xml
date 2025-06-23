@@ -1,2 +1,2 @@
 pub mod get_file;
-mod errors;
+pub mod errors;
