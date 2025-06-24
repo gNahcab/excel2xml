@@ -39,7 +39,6 @@ pub fn sheets<P: AsRef<Path> + std::fmt::Debug>(folder_path: P, parse_informatio
                 workbook_info
             }
         };
-
         for (pos, worksheet) in read_xlsx(PathBuf::from(path.path()))?.iter().enumerate() {
             let sheet_info = match workbook.sheet_infos.get(&(pos + 1)) {
                 None => {

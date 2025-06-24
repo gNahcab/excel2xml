@@ -130,7 +130,7 @@ impl WrapperDaschValue {
                     }
                     Some(encoding) => {encoding}
                 };
-                transient_dasch_value.add_encoding(encoding.to_owned(), gui_element);
+                transient_dasch_value.add_encoding(encoding.to_owned(), gui_element)?;
             }
             if maybe_suppl_value.as_ref().unwrap().comment.is_some() {
                 let comment = match maybe_suppl_value.as_ref().unwrap().comment.as_ref().unwrap().get(pos) {

@@ -3,10 +3,11 @@ use hcl::{Attribute, Block};
 use crate::parse_info::errors::HCLDataError;
 use crate::parse_info::header_value::HeaderValue;
 use crate::parse_info::methods_domain::combine_method::{CombineMethod, WrapperCombineMethod};
-use crate::parse_info::methods_domain::create_method::{old_CreateMethod, CreateMethod, WrapperCreateMethod};
+use crate::parse_info::methods_domain::create_method::{CreateMethod, WrapperCreateMethod};
 use crate::parse_info::methods_domain::identify_method::{IdentifyMethod, WrapperIdentifyMethod};
 use crate::parse_info::methods_domain::lower_upper_method::{LowerMethod, UpperMethod, WrapperLowerUpperMethod};
 use crate::parse_info::methods_domain::method::Method;
+use crate::parse_info::methods_domain::replace_label_name::{ReplaceLabelNameMethod, WrapperReplaceLabelNameMethod};
 use crate::parse_info::methods_domain::replace_method::{ReplaceMethod, WrapperReplaceMethod};
 use crate::parse_info::methods_domain::to_alter_method::{AlterMethod, WrapperAlterMethod};
 use crate::parse_info::methods_domain::to_date_method::{ToDateMethod, WrapperToDateMethod};
@@ -15,10 +16,12 @@ use crate::parse_info::methods_domain::to_date_method::{ToDateMethod, WrapperToD
 pub struct TransformationsWrapper (pub(crate) Block);
 #[derive(Debug, Clone)]
 pub struct Transformations{
+    // important, also add new method to check for duplicates!
     pub lower_methods:Vec<LowerMethod>,
     pub upper_methods:Vec<UpperMethod>,
     pub combine_methods:Vec<CombineMethod>,
     pub replace_methods:Vec<ReplaceMethod>,
+    pub replace_label_name_methods: Vec<ReplaceLabelNameMethod>,
     pub to_date_methods:Vec<ToDateMethod>,
     pub create_methods:Vec<CreateMethod>,
     pub alter_methods: Vec<AlterMethod>,
@@ -33,6 +36,7 @@ impl Transformations {
             upper_methods: vec![],
             combine_methods: vec![],
             replace_methods: vec![],
+            replace_label_name_methods: vec![],
             to_date_methods: vec![],
             create_methods: vec![],
             alter_methods: vec![],
@@ -53,6 +57,9 @@ impl Transformations {
     }
     pub(crate) fn add_replace_method(&mut self, replace_method: ReplaceMethod) {
         self.replace_methods.push(replace_method);
+    }
+    pub(crate) fn add_replace_label_name_method(&mut self, replace_label_name_method: ReplaceLabelNameMethod) {
+        self.replace_label_name_methods.push(replace_label_name_method);
     }
     pub(crate) fn add_to_date_method(&mut self, to_date_method: ToDateMethod) {
         self.to_date_methods.push(to_date_method);
@@ -191,6 +198,11 @@ impl TransformationsWrapper {
                     combine_method.is_correct()?;
                     transformations.add_combine_method(combine_method);
                 }
+                 "replace_label_name"=> {
+                     let replace_label_name_method = WrapperReplaceLabelNameMethod(block.to_owned()).to_replace_label_name_method()?;
+                     replace_label_name_method.is_correct()?;
+                     transformations.add_replace_label_name_method(replace_label_name_method);
+                 }
                 "replace"=> {
                     let replace_method = WrapperReplaceMethod(block.to_owned()).to_replace_method()?;
                     replace_method.is_correct()?;

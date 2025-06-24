@@ -94,7 +94,7 @@ impl TransientDataHeader {
         self.propname_to_pos.insert(propname, pos);
         Ok(())
     }
-    fn check_field(&self, super_field: &SuperField, res_name: &String) -> Result<(), ExcelDataError> {
+    fn check_super_field(&self, super_field: &SuperField, res_name: &String) -> Result<(), ExcelDataError> {
         match super_field {
             SuperField::Resource => {
                 if self.bitstream.is_some() || self.bitstream_permissions.is_some() {
@@ -107,9 +107,11 @@ impl TransientDataHeader {
                 if self.bitstream.is_none() {
                     return Err(ExcelDataError::InputError(format!("cannot find bitstream in resource '{:?}'. But bitstream is necessary for this kind of resource.", self)));
                 }
+                /*
                 if self.bitstream_permissions.is_none() {
                     return Err(ExcelDataError::InputError(format!("cannot find bitstream-permissions in resource '{:?}'. But bitstream-permissions is necessary because resource has bitstream.", self)));
                 }
+                 */
             }
         }
         Ok(())
@@ -122,7 +124,7 @@ impl TransientDataHeader {
         if self.label.is_none() {
             return Err(ExcelDataError::InputError(format!("Cannot find label for transient-data-header: {:?}", self)));
         }
-        self.check_field(super_field, res_name)?;
+        self.check_super_field(super_field, res_name)?;
         Ok(())
 
     }

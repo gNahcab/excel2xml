@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
+use crate::parse_dm::domain::dasch_list::{DaSCHList, ListNode};
+use crate::parse_dm::domain::data_model::DataModel;
+use crate::parse_dm::domain::label::Label;
 use crate::parse_info::errors::HCLDataError;
 use crate::parse_info::header_value::HeaderValue;
 use crate::parse_info::methods_domain::behavior_type::BehaviorType;
@@ -10,6 +13,7 @@ use crate::parse_info::methods_domain::date_type::DateType;
 use crate::parse_info::methods_domain::integer_create::IntegerCreate;
 use crate::parse_info::methods_domain::lower_upper_method::{LowerMethod, UpperMethod};
 use crate::parse_info::methods_domain::permissions_create::PermissionsCreate;
+use crate::parse_info::methods_domain::replace_label_name::ReplaceLabelNameMethod;
 use crate::parse_info::methods_domain::replace_method::ReplaceMethod;
 use crate::parse_info::methods_domain::step::{StepMethod};
 use crate::parse_info::methods_domain::to_alter_method::AlterMethod;
@@ -25,6 +29,42 @@ pub fn perform_identify(key_value_map: HashMap<String, String>, base_col: &Vec<S
 }
 
 
+pub fn perform_replace_label_name(replace_label_name_method: &ReplaceLabelNameMethod, col_nr_to_cols_expanded: &HashMap<usize, DataCol>, header_to_col_nr_expanded: &HashMap<String, usize>, data_model: &&DataModel) -> Result<DataCol, HCLDataError> {
+    let header_number = find_header_number(&replace_label_name_method.input, col_nr_to_cols_expanded, header_to_col_nr_expanded)?;
+    let col = &col_nr_to_cols_expanded.get(&header_number).unwrap();
+    let labels_to_names = _labels_to_names(data_model, &replace_label_name_method.list_name)?;
+    let new_column = _replace_label_name(col, labels_to_names);
+    Ok(DataCol::new(new_column, replace_label_name_method.output.to_owned()))
+}
+
+fn _labels_to_names(data_model: &&DataModel, list_name: &String) -> Result<HashMap<String, String>, HCLDataError> {
+    let mut list = match data_model.lists.get(list_name) {
+        None => {
+            return Err(HCLDataError::InputError(format!("List with name '{}' not found in lists. Existing listnames: '{:?}'", list_name, data_model.lists.iter().map(|(name, _)|name).collect::<Vec<&String>>())));
+        }
+        Some(list) => {list}
+    };
+    let mut labels_names: Vec<(&Label, &String)> = vec![];
+    _flatten_labels(&list.nodes, &mut labels_names);
+    let label_to_name = labels_names.iter().map(|(label, name)| (label.label.to_owned(), name.to_owned().to_owned())).collect::<HashMap<String, String>>();
+    Ok(label_to_name)
+}
+
+fn _flatten_labels<'node>(list_nodes: &'node Vec<ListNode>, labels_names: &mut Vec<(&'node Label, &'node String)>) {
+    for node in list_nodes {
+        for label in &node.labels {
+            labels_names.push((label, &node.name));
+        }
+        _flatten_labels(&node.nodes, labels_names)
+    }
+}
+
+fn _replace_label_name(data_col: &&DataCol, label_to_name: HashMap<String, String>) -> Vec<String> {
+    data_col.col.iter().map(|value| match label_to_name.get(value) {
+        None => {value.to_owned()}
+        Some(new_value) => {new_value.to_owned()}
+    }).collect()
+}
 
 pub fn perform_replace(replace_method: &ReplaceMethod, col_nr_to_cols_expanded: &HashMap<usize, DataCol>, existing_header_to_col_nr: &HashMap<String, usize>) -> Result<DataCol, HCLDataError> {
     let header_number = find_header_number(&replace_method.input, col_nr_to_cols_expanded, existing_header_to_col_nr)?;

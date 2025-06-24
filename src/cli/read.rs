@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use clap::{Parser, Subcommand};
-use crate::operations::excel2xml;
+use crate::operations::{excel2xml, write_hcl_default};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -21,7 +21,11 @@ enum Commands {
     XML {
         #[arg(short, long, value_name = "TRANSFORM PATH")]
         transform: PathBuf,
-    }
+    },
+     HCL {
+         #[arg(short, long, value_name = "TRANSFORM PATH")]
+         folder: PathBuf,
+     }
 }
 pub fn read_in() -> () {
     let cli = Cli::parse();
@@ -43,6 +47,10 @@ pub fn read_in() -> () {
             println!("[Xml] transform: {:?}" , transform);
             excel2xml(transform);
         },
+        Some(Commands::HCL { folder }) => {
+            println!("[Hcl] write based on folder: {:?}", folder);
+            write_hcl_default(folder);
+        }
         None => println!("Command '{:?}' does not exist: Commands are 'xml'.", cli.command),
     }
 }

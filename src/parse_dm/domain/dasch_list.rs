@@ -18,7 +18,7 @@ impl DaSCHList {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ListNode {
     pub name: String,
-    labels: Vec<Label>,
+    pub labels: Vec<Label>,
     pub nodes: Vec<ListNode>
 }
 

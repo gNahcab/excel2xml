@@ -3,7 +3,7 @@ mod ontology;
 pub(crate) mod property;
 pub(crate) mod resource;
 pub(crate) mod res_property;
-mod label;
+pub mod label;
 pub mod object;
 mod builder;
 pub mod dasch_list;

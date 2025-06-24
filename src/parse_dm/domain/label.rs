@@ -5,7 +5,7 @@ use crate::parse_dm::errors::DataModelError;
 pub struct Label {
     // can be a Label or a Comment
     language: String,
-    label: String,
+    pub label: String,
 }
 pub(crate) struct LabelWrapper(pub(crate) (String, Value));
 impl LabelWrapper {

@@ -58,10 +58,11 @@ impl TransientResourceData {
                 if self.bitstream.is_none() {
                     return Err(ExcelDataError::InputError(format!("cannot find bitstream in resource '{:?}'. But bitstream is necessary for this kind of resource.", self)));
                 }
+                /*
                 if self.bitstream_permissions.is_none() {
                     return Err(ExcelDataError::InputError(format!("cannot find bitstream-permissions in resource '{:?}'. But bitstream-permissions is necessary because resource has bitstream.", self)));
-
                 }
+                 */
             }
         }
         Ok(())

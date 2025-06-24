@@ -7,13 +7,13 @@ use crate::parse_info::wrapper_trait::Wrapper;
 
 #[derive(Debug)]
 pub struct Assignments {
-    pub header_to_propname: HashMap<String, HeaderValue>,
+    pub propname_to_header: HashMap<String, HeaderValue>,
     find_rest: bool
 }
 
 impl Assignments {
     fn new(transient_assignments: TransientAssignments) -> Self{
-        Assignments{ header_to_propname: transient_assignments.header_to_propname, find_rest: transient_assignments.find_rest.unwrap()}
+        Assignments{ propname_to_header: transient_assignments.header_to_propname, find_rest: transient_assignments.find_rest.unwrap()}
     }
 }
 struct TransientAssignments {
