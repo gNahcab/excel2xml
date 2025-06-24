@@ -18,3 +18,4 @@ pub mod to_alter_method;
 pub mod integer_create;
 pub mod permissions_create;
 pub mod replace_label_name;
+pub mod update_with_trig_method;

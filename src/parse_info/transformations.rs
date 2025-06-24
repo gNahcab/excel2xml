@@ -11,6 +11,7 @@ use crate::parse_info::methods_domain::replace_label_name::{ReplaceLabelNameMeth
 use crate::parse_info::methods_domain::replace_method::{ReplaceMethod, WrapperReplaceMethod};
 use crate::parse_info::methods_domain::to_alter_method::{AlterMethod, WrapperAlterMethod};
 use crate::parse_info::methods_domain::to_date_method::{ToDateMethod, WrapperToDateMethod};
+use crate::parse_info::methods_domain::update_with_trig_method::{UpdateWithTrigMethod, WrapperUpdateWithTrig};
 
 #[derive(Debug)]
 pub struct TransformationsWrapper (pub(crate) Block);
@@ -26,8 +27,11 @@ pub struct Transformations{
     pub create_methods:Vec<CreateMethod>,
     pub alter_methods: Vec<AlterMethod>,
     pub identify_methods:Vec<IdentifyMethod>,
+    pub update_with_trig_method: Vec<UpdateWithTrigMethod>
 }
 
+impl Transformations {
+}
 
 impl Transformations {
     fn new() -> Transformations {
@@ -41,6 +45,7 @@ impl Transformations {
             create_methods: vec![],
             alter_methods: vec![],
             identify_methods: vec![],
+            update_with_trig_method: vec![],
         }
     }
     pub(crate) fn add_lower_method(&mut self, lower_method: LowerMethod) {
@@ -70,6 +75,9 @@ impl Transformations {
     }
     pub(crate) fn add_identify_method(&mut self, identify_method: IdentifyMethod) {
         self.identify_methods.push(identify_method);
+    }
+    pub(crate) fn add_update_with_trig_method(&mut self, update_with_trig_method: UpdateWithTrigMethod) {
+        self.update_with_trig_method.push(update_with_trig_method);
     }
     pub(crate) fn output_values(&self) -> Vec<&String> {
         let mut vec:Vec<&String> = vec![];
@@ -226,6 +234,10 @@ impl TransformationsWrapper {
                      let identify_method = WrapperIdentifyMethod(block.to_owned()).to_identify_method()?;
                      //identify_method.is_correct()?;
                      transformations.add_identify_method(identify_method);
+                 }
+                 "update_with_trig"=> {
+                     let update_with_trig_method = WrapperUpdateWithTrig(block.to_owned()).to_update_with_trig_method()?;
+                     transformations.add_update_with_trig_method(update_with_trig_method);
                  }
                 _ => {
                     return Err(HCLDataError::ParsingError(format!("unknown method found in transformations: '{:?}'", block.identifier)));

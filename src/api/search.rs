@@ -66,6 +66,7 @@ fn json_contains_useful_data(value: &serde_json::Value) -> bool {
     }
 }
 
+
 fn import_email_pw_from_env() -> Result<(String, String), APICallError> {
     dotenv().ok();
     let pw_val = env::var("PASSWORD")?;
@@ -76,9 +77,11 @@ fn import_email_pw_from_env() -> Result<(String, String), APICallError> {
 
 mod test {
     use std::fmt::Debug;
+    use crate::api::search::{get_token, import_email_pw_from_env};
 
     #[test]
     fn test_api() {
-        todo!()
+        let (email, pw) =import_email_pw_from_env().unwrap();
+        let token = async { get_token(email, pw, "api.dasch.swiss".to_string()).unwrap(); };
     }
 }
