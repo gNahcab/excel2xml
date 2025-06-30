@@ -1,5 +1,5 @@
 use hcl::{Expression, Number};
-use crate::parse_info::errors::HCLDataError;
+use crate::parse_hcl::errors::HCLDataError;
 pub trait ExpressionTransform {
     fn to_string_2(&self) -> Result<String, HCLDataError>;
     fn to_bool(&self) -> Result<bool, HCLDataError>;

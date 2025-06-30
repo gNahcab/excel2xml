@@ -1,4 +1,6 @@
-use crate::parse_info::errors::HCLDataError;
+use serde::ser::StdError;
+use crate::api::error::APICallError;
+use crate::parse_hcl::errors::HCLDataError;
 use crate::parse_xlsx::errors::ExcelDataError;
 use crate::path_operations::errors::PathOpError;
 use crate::read_hcl::errors::ReadHCLError;
@@ -18,6 +20,19 @@ pub enum Excel2XmlError {
     ReadHCLError(ReadHCLError),
     ReadJsonError(ReadJsonError),
     PathOpError(PathOpError),
+    APICallError(APICallError),
+    SerError(Box<dyn StdError>),
+}
+impl From<Box<dyn StdError>> for Excel2XmlError {
+    fn from(error: Box<dyn StdError>) -> Self {
+        Excel2XmlError::SerError(error)
+    }
+}
+
+impl From<APICallError> for Excel2XmlError {
+    fn from(error: APICallError) -> Self {
+        Excel2XmlError::APICallError(error)
+    }
 }
 impl From<PathOpError> for Excel2XmlError {
     fn from(error: PathOpError) -> Self {

@@ -3,21 +3,22 @@ use std::fmt::Debug;
 use crate::parse_dm::domain::dasch_list::{DaSCHList, ListNode};
 use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::label::Label;
-use crate::parse_info::errors::HCLDataError;
-use crate::parse_info::header_value::HeaderValue;
-use crate::parse_info::methods_domain::behavior_type::BehaviorType;
-use crate::parse_info::methods_domain::combine_method::CombineMethod;
-use crate::parse_info::methods_domain::create_method::{CreateMethod};
-use crate::parse_info::methods_domain::date_pattern::DatePattern;
-use crate::parse_info::methods_domain::date_type::DateType;
-use crate::parse_info::methods_domain::integer_create::IntegerCreate;
-use crate::parse_info::methods_domain::lower_upper_method::{LowerMethod, UpperMethod};
-use crate::parse_info::methods_domain::permissions_create::PermissionsCreate;
-use crate::parse_info::methods_domain::replace_label_name::ReplaceLabelNameMethod;
-use crate::parse_info::methods_domain::replace_method::ReplaceMethod;
-use crate::parse_info::methods_domain::step::{StepMethod};
-use crate::parse_info::methods_domain::to_alter_method::AlterMethod;
-use crate::parse_info::methods_domain::to_date_method::ToDateMethod;
+use crate::parse_hcl::errors::HCLDataError;
+use crate::parse_hcl::header_value::HeaderValue;
+use crate::parse_hcl::methods_domain::behavior_type::BehaviorType;
+use crate::parse_hcl::methods_domain::combine_method::CombineMethod;
+use crate::parse_hcl::methods_domain::create_method::{CreateMethod};
+use crate::parse_hcl::methods_domain::date_pattern::DatePattern;
+use crate::parse_hcl::methods_domain::date_type::DateType;
+use crate::parse_hcl::methods_domain::integer_create::IntegerCreate;
+use crate::parse_hcl::methods_domain::lower_upper_method::{LowerMethod, UpperMethod};
+use crate::parse_hcl::methods_domain::permissions_create::PermissionsCreate;
+use crate::parse_hcl::methods_domain::replace_label_name::ReplaceLabelNameMethod;
+use crate::parse_hcl::methods_domain::replace_method::ReplaceMethod;
+use crate::parse_hcl::methods_domain::step::{StepMethod};
+use crate::parse_hcl::methods_domain::to_alter_method::AlterMethod;
+use crate::parse_hcl::methods_domain::to_date_method::ToDateMethod;
+use crate::parse_hcl::methods_domain::update_with_server_method::ReplaceWithIRI;
 use crate::parse_xlsx::domain::data_col::{DataCol, TransientDataCol};
 use crate::parse_xlsx::domain::data_domain::date_period::DatePeriodWrapper;
 
@@ -64,6 +65,31 @@ fn _replace_label_name(data_col: &&DataCol, label_to_name: HashMap<String, Strin
         None => {value.to_owned()}
         Some(new_value) => {new_value.to_owned()}
     }).collect()
+}
+pub fn perform_replace_with_iri(replace_with_iri_method: &ReplaceWithIRI, col_nr_to_cols_expanded: &HashMap<usize, DataCol>, existing_header_to_col_nr: &HashMap<String, usize>, res_name_iri: &HashMap<String, HashMap<String, String>>) -> Result<DataCol, HCLDataError> {
+    let header_number = find_header_number(&replace_with_iri_method.input, col_nr_to_cols_expanded, existing_header_to_col_nr)?;
+    let col = &col_nr_to_cols_expanded.get(&header_number).unwrap();
+    let label_to_iri = match res_name_iri.get(replace_with_iri_method.resource.as_str()) {
+        None => {return Err(HCLDataError::InputError(format!("Resource-name '{}' does not exist in res-name-to-label-iri. Existing names are: '{:?}'.", replace_with_iri_method.resource, res_name_iri.keys())))}
+        Some(label_to_iri) => {label_to_iri}
+    };
+    let new_column = _replace_with_iri(col, label_to_iri);
+    Ok(DataCol::new(new_column, replace_with_iri_method.output.to_owned()))
+}
+
+fn _replace_with_iri(data_col: &&DataCol, label_to_iri: &HashMap<String, String>) -> Vec<String> {
+    let mut new_col = vec![];
+    for label in data_col.col.iter() {
+        match label_to_iri.get(label.as_str()) {
+            None => {
+                new_col.push(label.to_owned());
+            }
+            Some(iri) => {
+                new_col.push(iri.to_owned());
+            }
+        }
+    }
+    new_col
 }
 
 pub fn perform_replace(replace_method: &ReplaceMethod, col_nr_to_cols_expanded: &HashMap<usize, DataCol>, existing_header_to_col_nr: &HashMap<String, usize>) -> Result<DataCol, HCLDataError> {
@@ -251,11 +277,11 @@ fn find_header_number(input: &HeaderValue, col_nr_to_data_col: &HashMap<usize, D
     }
 #[cfg(test)]
 mod test {
-    use crate::parse_info::header_value::HeaderValue;
-    use crate::parse_info::methods_domain::date_bricks::{DateBricks, DateInfo, DateName};
-    use crate::parse_info::methods_domain::date_pattern::DatePattern;
-    use crate::parse_info::methods_domain::date_type::DateType;
-    use crate::parse_info::methods_domain::to_date_method::ToDateMethod;
+    use crate::parse_hcl::header_value::HeaderValue;
+    use crate::parse_hcl::methods_domain::date_bricks::{DateBricks, DateInfo, DateName};
+    use crate::parse_hcl::methods_domain::date_pattern::DatePattern;
+    use crate::parse_hcl::methods_domain::date_type::DateType;
+    use crate::parse_hcl::methods_domain::to_date_method::ToDateMethod;
     use crate::parse_xlsx::domain::data_col::TransientDataCol;
     use crate::parse_xlsx::domain::manipulations::_to_date;
 

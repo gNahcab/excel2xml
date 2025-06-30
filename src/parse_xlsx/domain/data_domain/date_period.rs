@@ -1,8 +1,8 @@
 use std::env::var;
 use regex::Captures;
-use crate::parse_info::errors::HCLDataError;
-use crate::parse_info::methods_domain::date_pattern::DatePattern;
-use crate::parse_info::methods_domain::date_type::DateType;
+use crate::parse_hcl::errors::HCLDataError;
+use crate::parse_hcl::methods_domain::date_pattern::DatePattern;
+use crate::parse_hcl::methods_domain::date_type::DateType;
 use crate::parse_xlsx::domain::data_domain::date::{Date, TransientDate};
 
 pub struct DatePeriod {

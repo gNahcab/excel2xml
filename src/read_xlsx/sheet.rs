@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use calamine::{Data, Range};
-use crate::parse_info::domain::parse_info::ParseInformation;
+use crate::parse_hcl::domain::parse_info::ParseInformation;
 use crate::read_xlsx::errors::ReadXlsxError;
 use crate::read_xlsx::get_file::read_xlsx;
 

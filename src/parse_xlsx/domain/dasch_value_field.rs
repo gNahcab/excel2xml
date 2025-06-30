@@ -6,7 +6,7 @@ use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::gui_element::GUIElement;
 use crate::parse_dm::domain::object::ValueObject;
 use crate::parse_dm::domain::property::Property;
-use crate::parse_info::domain::prop_supplement::{PropSupplType, PropSupplement};
+use crate::parse_hcl::domain::prop_supplement::{PropSupplType, PropSupplement};
 use crate::parse_xlsx::domain::subheader_value::{SubheaderValues};
 use crate::parse_xlsx::domain::dasch_value::{DaschValue, TransientDaschValue, WrapperDaschValue};
 use crate::parse_xlsx::domain::encoding::{Encoding, EncodingWrapper};

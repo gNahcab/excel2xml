@@ -1,24 +1,29 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use csv::StringRecord;
 use serde_json::Value;
+use crate::api::download_resources::metadata_download;
+use crate::api::error::APICallError;
 use crate::parse_dm::domain::data_model::DataModel;
 use crate::errors::Excel2XmlError;
 use crate::parse_dm::errors::DataModelError;
-use crate::parse_info::domain::parse_info::ParseInformation;
-use crate::parse_info::domain::parse_info_draft::ParseInformationDraft;
+use crate::parse_hcl::domain::parse_info::ParseInformation;
+use crate::parse_hcl::domain::parse_info_draft::ParseInformationDraft;
 use crate::parse_xlsx::domain::data_container::{DataContainer, DataContainerWrapper};
 use crate::parse_xlsx::domain::expanded_data_sheet::{expanded_data_sheets, ExpandedDataSheet};
 use crate::parse_xlsx::domain::intermediate_sheet::{intermediate_sheets, IntermediateSheet};
 use crate::parse_xlsx::errors::ExcelDataError;
-use crate::parse_info::errors::HCLDataError;
-use crate::parse_info::transformations::Transformations;
+use crate::parse_hcl::errors::HCLDataError;
+use crate::parse_hcl::transformations::Transformations;
 use crate::parse_xlsx::domain::updated_data_sheet::{UpdatedDataSheet, UpdatedDataSheetWrapper};
 use crate::path_operations::path_operations::{canonicalize_paths, filter_paths_based_on_extension};
+use crate::read_csv::read_csv::{read_as_headers_rows, to_rows_headers};
 use crate::read_hcl::get_file::read_hcl_body;
 use crate::read_json::get_file::read_from_json;
 use crate::read_xlsx::get_file::read_xlsx;
 use crate::read_xlsx::sheet::{sheets, Sheet};
+use crate::write_csv::write_csv::write_csv;
 use crate::write_hcl::write_hcl::write_hcl;
 use crate::write_xml::write_xml::write_xml;
 
@@ -55,6 +60,7 @@ pub fn excel2xml(hcl_path: &PathBuf) {
     // canonicalize paths
     let hcl_path = fs::canonicalize(hcl_path).expect("unable to find absolute-path of parse-info");
     let parse_info: ParseInformation = parse_hcl_info(hcl_path).unwrap();
+    let res_name_iri = res_names_iris(&parse_info.res_name_to_updates.iter().map(|(res_name, update)|update).collect::<Vec<&Transformations>>(), &parse_info.shortcode).unwrap();
 
     /*
     let folder_path = fs::canonicalize(folder_path).expect("unable to find absolute-path of folder-path");
@@ -75,13 +81,74 @@ pub fn excel2xml(hcl_path: &PathBuf) {
     // prepare
     let intermediate_sheets: Vec<IntermediateSheet> = intermediate_sheets(sheets).unwrap();
     // edit
-    let expanded_data_sheets:Vec<ExpandedDataSheet> = expanded_data_sheets(intermediate_sheets, &parse_info, &data_model).unwrap();
+    let expanded_data_sheets:Vec<ExpandedDataSheet> = expanded_data_sheets(intermediate_sheets, &parse_info, &data_model, res_name_iri).unwrap();
     let updated_data_sheets: Vec<UpdatedDataSheet> = updated_data_sheets(expanded_data_sheets, &parse_info.res_name_to_updates).unwrap();
     // structure & review
     let mut data_containers: Vec<DataContainer> = data_containers(&updated_data_sheets, &data_model, &parse_info).unwrap();
     for  data_container in data_containers.iter() {
         write_xml(&data_container, &data_model, &parse_info).unwrap();
     }
+}
+
+fn res_names_iris(transformations: &Vec<&Transformations>, shortcode: &String) -> Result<HashMap<String, HashMap<String, String>>, Excel2XmlError> {
+    if !call_necessary(transformations) {
+        return Ok(HashMap::new())
+    }
+    let path = PathBuf::from(format!("resources/resources_metadata/resources_{}.csv", shortcode));
+    if path.exists() {
+        println!("file '{:?}' already exists", path);
+        let (_, rows) = read_as_headers_rows(path)?;
+        println!("load from csv.");
+        Ok(res_name_to_label_to_iri(rows))
+    } else {
+        let csv_string = fetch_csv_string(shortcode)?;
+        let (header, rows) = to_rows_headers(csv_string)?;
+        write_csv(&rows, &header, path)?;
+        Ok(res_name_to_label_to_iri(rows))
+    }
+}
+
+fn res_name_to_label_to_iri(rows: Vec<StringRecord>) -> HashMap<String, HashMap<String, String>>{
+    // resource class
+    let mut res_name_to_label_iri: HashMap<String, HashMap<String, String>> = HashMap::new();
+    for row in rows {
+        let res_name_raw = row[1].trim().to_owned();
+        let res_name = shorten_res_name(res_name_raw);
+        if !res_name_to_label_iri.contains_key(&res_name) {
+            res_name_to_label_iri.insert(res_name.to_owned(), HashMap::new());
+        }
+        let label = row[0].trim().to_owned();
+        let res_iri = row[4].trim().to_owned();
+        res_name_to_label_iri.get_mut(&res_name).unwrap().insert(label, res_iri);
+    }
+    res_name_to_label_iri
+}
+
+fn shorten_res_name(raw: String) -> String {
+    // "http://api.dasch.swiss/ontology/0812/ekws/v2#Agent -> Agent
+    let last = match raw.rfind("#") {
+        None => {
+            panic!("strange format for res-name: {:?}", raw);
+        }
+        Some(pos) => {pos}
+    };
+    raw[last+1..].to_owned()
+}
+
+fn fetch_csv_string(shortcode: &String) -> Result<String, APICallError> {
+    let server = "api.dasch.swiss".to_string();
+    metadata_download(server, shortcode)
+}
+
+fn call_necessary(transformations: &Vec<&Transformations>) -> bool {
+    let mut call_necessary = false;
+    for transformation in transformations {
+        if !transformation.replace_with_iri.is_empty() {
+            call_necessary = true;
+            break;
+        }
+    }
+    call_necessary
 }
 
 fn load_data_model(file: Value) -> Result<DataModel, DataModelError> {

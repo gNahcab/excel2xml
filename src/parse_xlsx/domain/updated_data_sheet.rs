@@ -1,7 +1,7 @@
 use std::collections::HashMap;
-use crate::parse_info::errors::HCLDataError;
-use crate::parse_info::methods_domain::identify_method::IdentifyMethod;
-use crate::parse_info::transformations::Transformations;
+use crate::parse_hcl::errors::HCLDataError;
+use crate::parse_hcl::methods_domain::identify_method::IdentifyMethod;
+use crate::parse_hcl::transformations::Transformations;
 use crate::parse_xlsx::domain::data_col::DataCol;
 use crate::parse_xlsx::domain::data_row::DataRow;
 use crate::parse_xlsx::domain::expanded_data_sheet::{add_to_header_cols, ExpandedDataSheet};

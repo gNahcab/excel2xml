@@ -1,5 +1,5 @@
 use crate::parse_dm::domain::super_field::SuperField;
-use crate::parse_info::domain::resource_supplement::{ResourceSupplType, ResourceSupplement};
+use crate::parse_hcl::domain::resource_supplement::{ResourceSupplType, ResourceSupplement};
 use crate::parse_xlsx::domain::permissions::{Permissions, PermissionsWrapper};
 use crate::parse_xlsx::errors::ExcelDataError;
 

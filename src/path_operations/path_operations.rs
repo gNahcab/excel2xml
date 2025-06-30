@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 use std::path::PathBuf;
-use crate::parse_info::domain::command_path::CommandOrPath;
+use crate::parse_hcl::domain::command_path::CommandOrPath;
 use crate::path_operations::canonicalize_path::{canonicalize_path, find_datamodel};
 use crate::path_operations::errors::PathOpError;
 
@@ -11,7 +11,7 @@ pub(crate) fn canonicalize_paths(dm_path: &CommandOrPath, folder_data_path: &Pat
             canonicalize_path(datamodel_path)?
         }
         CommandOrPath::Command(command) => {
-            match command { crate::parse_info::domain::command::ParseInfoCommand::FINDPaths => {
+            match command { crate::parse_hcl::domain::command::ParseInfoCommand::FINDPaths => {
                 find_datamodel(hcl_path)?
             } }
         }

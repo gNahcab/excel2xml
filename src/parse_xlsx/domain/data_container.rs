@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use crate::parse_dm::domain::data_model::DataModel;
-use crate::parse_info::domain::parse_info::ParseInformation;
-use crate::parse_info::domain::prop_supplement::PropSupplement;
-use crate::parse_info::domain::resource_supplement::ResourceSupplement;
+use crate::parse_hcl::domain::parse_info::ParseInformation;
+use crate::parse_hcl::domain::prop_supplement::PropSupplement;
+use crate::parse_hcl::domain::resource_supplement::ResourceSupplement;
 use crate::parse_xlsx::domain::data_col::DataCol;
 use crate::parse_xlsx::domain::data_header::{discern_label_id_propnames_and_supplements, DataHeader, DataHeaderWrapper};
 use crate::parse_xlsx::domain::data_row::DataRow;

@@ -1,7 +1,7 @@
 use std::collections::{HashMap};
 use std::hash::Hash;
 use crate::parse_dm::domain::super_field::SuperField;
-use crate::parse_info::domain::prop_supplement::PropSupplement;
+use crate::parse_hcl::domain::prop_supplement::PropSupplement;
 use crate::parse_xlsx::errors::ExcelDataError;
 
 

@@ -3,7 +3,7 @@ use simple_xml_builder::XMLElement;
 use crate::errors::Excel2XmlError;
 use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::object::ValueObject;
-use crate::parse_info::domain::parse_info::ParseInformation;
+use crate::parse_hcl::domain::parse_info::ParseInformation;
 use crate::parse_xlsx::domain::data_container::DataContainer;
 use crate::parse_xlsx::domain::instance::Instance;
 use crate::parse_xlsx::errors::ExcelDataError;
