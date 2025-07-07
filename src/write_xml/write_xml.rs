@@ -1,14 +1,11 @@
 use std::fs::File;
 use simple_xml_builder::XMLElement;
-use crate::errors::Excel2XmlError;
 use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::object::ValueObject;
 use crate::parse_hcl::domain::parse_info::ParseInformation;
 use crate::parse_xlsx::domain::data_container::DataContainer;
 use crate::parse_xlsx::domain::instance::Instance;
-use crate::parse_xlsx::errors::ExcelDataError;
 use crate::write_xml::errors::WriteXMLError;
-use crate::write_xml::xml_permissions::add_default_permissions;
 
 pub fn write_xml_example() {
     let file = File::create("sample.xml").unwrap();
@@ -47,11 +44,14 @@ pub fn write_xml(data_container: &DataContainer, data_model: &DataModel, parse_i
             xml_res.add_child(bitstream_child(&resource));
         }
         for dasch_value_field in resource.dasch_value_fields.iter() {
-            let property_object = &data_model.properties.iter().find(|property|property.name.eq(&dasch_value_field.propname)).unwrap().object;
-            let (xml_object, sub_xml_object) = xml_object_sub_object(property_object);
+            let property_object = &data_model.properties.iter().find(|property|property.name.eq(&dasch_value_field.propname)).unwrap();
+            let (xml_object, sub_xml_object) = xml_object_sub_object(&property_object.object);
             let mut prop_container = XMLElement::new(xml_object);
             let propname = ":".to_string() + dasch_value_field.propname.as_str();
             prop_container.add_attribute("name", propname);
+            if property_object.object.eq(&ValueObject::ListValue) {
+                prop_container.add_attribute("list", property_object.h_list.as_ref().unwrap());
+            }
             for dasch_value in dasch_value_field.values.iter() {
                 let mut prop_value = XMLElement::new(&sub_xml_object);
                 /*
@@ -141,6 +141,9 @@ fn add_shortcode_default_ontology_attributes(knora: &mut XMLElement, shortcode: 
 
 fn bitstream_child(resource: &Instance) -> XMLElement {
     let mut bitstream = XMLElement::new("bitstream");
+    bitstream.add_attribute("copyright_holder", &resource.copyright_holder.as_ref().unwrap());
+    bitstream.add_attribute("authorship", format!("{:?}", &resource.authorship.as_ref().unwrap()));
+    bitstream.add_attribute("license", &resource.license.as_ref().unwrap());
     bitstream.add_text(resource.bitstream.as_ref().unwrap());
     if resource.bitstream_permissions.is_some() {
         bitstream.add_attribute("permissions",resource.bitstream_permissions.as_ref().unwrap())

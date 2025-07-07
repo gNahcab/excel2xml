@@ -73,7 +73,7 @@ impl TransientDataSheet {
 pub(crate) struct ExpandedDataSheetWrapper(pub(crate) IntermediateSheet);
 
 impl ExpandedDataSheetWrapper {
-    pub(crate) fn to_expanded_data_sheet(&self, sheet_info: &SheetInfo, data_model: &DataModel, res_name_iri: &HashMap<String, HashMap<String, String>>) -> Result<ExpandedDataSheet, HCLDataError> {
+    pub(crate) fn to_expanded_data_sheet(&self, sheet_info: &SheetInfo, data_model: &DataModel, res_name_iri: &HashMap<String, HashMap<String, String>>, separator: &String) -> Result<ExpandedDataSheet, HCLDataError> {
         // this is where the changes requested in the parse-information file should be processed
         let header_to_col_nr = header_to_col_nr(&sheet_info.assignments, &self.0.col_nr_to_data_cols)?;
         let (col_nr_to_cols, header_to_col_nr) = match sheet_info.transformations {
@@ -81,7 +81,7 @@ impl ExpandedDataSheetWrapper {
                 (self.0.col_nr_to_data_cols.to_owned(), header_to_col_nr)
             }
             Some(_) => {
-                create_data(self.0.col_nr_to_data_cols.to_owned(), header_to_col_nr, sheet_info, &data_model, res_name_iri)?
+                create_data(self.0.col_nr_to_data_cols.to_owned(), header_to_col_nr, sheet_info, &data_model, res_name_iri, separator)?
             }
         };
         Ok(ExpandedDataSheet::new(sheet_info.resource_name.to_owned(), col_nr_to_cols, header_to_col_nr))
@@ -119,18 +119,18 @@ fn header_to_col_nr(assignments: &Assignments, col_nr_to_data_col: &HashMap<usiz
     Ok(header_to_col_nr)
 }
 
-fn create_data(mut col_nr_to_cols_expanded: HashMap<usize, DataCol>, mut header_to_col_nr_expanded: HashMap<String, usize>, sheet_info: &SheetInfo, data_model: &&DataModel, res_name_iri: &HashMap<String, HashMap<String, String>>) -> Result<(HashMap<usize, DataCol>, HashMap<String, usize>), HCLDataError> {
+fn create_data(mut col_nr_to_cols_expanded: HashMap<usize, DataCol>, mut header_to_col_nr_expanded: HashMap<String, usize>, sheet_info: &SheetInfo, data_model: &&DataModel, res_name_iri: &HashMap<String, HashMap<String, String>>, separator: &String) -> Result<(HashMap<usize, DataCol>, HashMap<String, usize>), HCLDataError> {
     let transformations = sheet_info.transformations.as_ref().unwrap();
     for replace_method in &transformations.replace_methods {
-        let data_col = perform_replace(replace_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded)?;
+        let data_col = perform_replace(replace_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded, separator)?;
         add_to_header_cols(&mut header_to_col_nr_expanded, &mut col_nr_to_cols_expanded, data_col);
     }
     for replace_with_iri in &transformations.replace_with_iri {
-        let data_col = perform_replace_with_iri(replace_with_iri, &col_nr_to_cols_expanded, &header_to_col_nr_expanded, res_name_iri)?;
+        let data_col = perform_replace_with_iri(replace_with_iri, &col_nr_to_cols_expanded, &header_to_col_nr_expanded, res_name_iri, separator)?;
         add_to_header_cols(&mut header_to_col_nr_expanded, &mut col_nr_to_cols_expanded, data_col);
     }
     for replace_label_name_method in &transformations.replace_label_name_methods {
-        let data_col = perform_replace_label_name(replace_label_name_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded, data_model)?;
+        let data_col = perform_replace_label_name(replace_label_name_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded, data_model, separator)?;
         add_to_header_cols(&mut header_to_col_nr_expanded, &mut col_nr_to_cols_expanded, data_col);
     }
     for lower_method in &transformations.lower_methods {
@@ -149,7 +149,7 @@ fn create_data(mut col_nr_to_cols_expanded: HashMap<usize, DataCol>, mut header_
 
     }
     for to_date_method in &transformations.to_date_methods {
-        let data_col = perform_to_date(to_date_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded)?;
+        let data_col = perform_to_date(to_date_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded, separator)?;
         add_to_header_cols(&mut header_to_col_nr_expanded, &mut col_nr_to_cols_expanded, data_col);
     }
     // infer length for create method
@@ -211,11 +211,11 @@ fn assign_headers(raw_headers: &DataRow, assignments: &HashMap<String, HeaderVal
     Ok(data_row)
 }
 
-pub fn expanded_data_sheets(sheets: Vec<IntermediateSheet>, parse_info: &ParseInformation, data_model: &DataModel, res_name_iri: HashMap<String, HashMap<String, String>>) -> Result<Vec<ExpandedDataSheet>, HCLDataError> {
+pub fn expanded_data_sheets(sheets: Vec<IntermediateSheet>, parse_info: &ParseInformation, data_model: &DataModel, res_name_iri: HashMap<String, HashMap<String, String>>, separator: &String) -> Result<Vec<ExpandedDataSheet>, HCLDataError> {
     let mut expanded_data_sheets = vec![];
     for sheet in sheets.iter() {
         let sheet_info = parse_info.rel_path_to_xlsx_workbooks.get(&sheet.rel_path).unwrap().sheet_infos.get(&sheet.sheet_info_nr).unwrap();
-        let expanded_data_sheet = ExpandedDataSheetWrapper(sheet.to_owned()).to_expanded_data_sheet(sheet_info, data_model, &res_name_iri)?;
+        let expanded_data_sheet = ExpandedDataSheetWrapper(sheet.to_owned()).to_expanded_data_sheet(sheet_info, data_model, &res_name_iri, separator)?;
         expanded_data_sheets.push(expanded_data_sheet);
     }
     Ok(expanded_data_sheets)

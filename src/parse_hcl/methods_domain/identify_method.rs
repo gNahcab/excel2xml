@@ -6,8 +6,7 @@ pub struct WrapperIdentifyMethod (pub(crate) Block);
 
 impl WrapperIdentifyMethod {
     pub(crate) fn to_identify_method(&self) -> Result<IdentifyMethod, HCLDataError> {
-        let output = output(&self.0.labels)?;
-        let mut transient_structure = TransientStructureIdentifyMethod::new(output);
+        let mut transient_structure = TransientStructureIdentifyMethod::new(self.0.get_output()?);
 
         for attribute in self.0.attributes() {
             match attribute.key.as_str() {

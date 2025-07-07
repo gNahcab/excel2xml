@@ -12,6 +12,9 @@ pub struct TransientDataHeader {
     pub res_permissions: Option<usize>,
     pub iri: Option<usize>,
     pub ark: Option<usize>,
+    pub authorship: Option<usize>,
+    pub license: Option<usize>,
+    pub copyright_holder: Option<usize>,
     pub(crate) bitstream: Option<usize>,
     pub(crate) bitstream_permissions: Option<usize>,
     pub(crate) propname_to_pos: HashMap<String, usize>,
@@ -26,6 +29,9 @@ impl TransientDataHeader {
             res_permissions: None,
             iri: None,
             ark: None,
+            authorship: None,
+            license: None,
+            copyright_holder: None,
             bitstream: None,
             bitstream_permissions: None,
             propname_to_pos: Default::default(),
@@ -37,6 +43,27 @@ impl TransientDataHeader {
             return Err(ExcelDataError::InputError(format!("TransientDataHeader: Found multiple iri-positions. First: {}, second: {}", self.iri.as_ref().unwrap(), pos)))
         }
         self.iri = Some(pos);
+        Ok(())
+    }
+    pub(crate) fn add_authorship_pos(&mut self, pos: usize) -> Result<(), ExcelDataError>  {
+        if self.authorship.is_some() {
+            return Err(ExcelDataError::InputError(format!("TransientDataHeader: Found multiple authorship-positions. First: {}, second: {}", self.authorship.as_ref().unwrap(), pos)))
+        }
+        self.authorship = Some(pos);
+        Ok(())
+    }
+    pub(crate) fn add_license_pos(&mut self, pos: usize) ->  Result<(), ExcelDataError>  {
+        if self.license.is_some() {
+            return Err(ExcelDataError::InputError(format!("TransientDataHeader: Found multiple license-positions. First: {}, second: {}", self.license.as_ref().unwrap(), pos)))
+        }
+        self.license = Some(pos);
+        Ok(())
+    }
+    pub(crate) fn add_copyright_holder_pos(&mut self, pos: usize) -> Result<(), ExcelDataError> {
+        if self.copyright_holder.is_some() {
+            return Err(ExcelDataError::InputError(format!("TransientDataHeader: Found multiple copyright_holder-positions. First: {}, second: {}", self.copyright_holder.as_ref().unwrap(), pos)))
+        }
+        self.copyright_holder = Some(pos);
         Ok(())
     }
     pub fn add_ark_pos(&mut self, pos: usize) -> Result<(), ExcelDataError> {
@@ -106,6 +133,15 @@ impl TransientDataHeader {
             SuperField::AudioRepresentation => {
                 if self.bitstream.is_none() {
                     return Err(ExcelDataError::InputError(format!("cannot find bitstream in resource '{:?}'. But bitstream is necessary for this kind of resource.", self)));
+                }
+                if self.license.is_none() {
+                    return Err(ExcelDataError::InputError(format!("cannot find license in resource '{:?}'. But license is necessary for this kind of resource.", self)));
+                }
+                if self.authorship.is_none() {
+                    return Err(ExcelDataError::InputError(format!("cannot find authorship in resource '{:?}'. But authorship is necessary for this kind of resource.", self)));
+                }
+                if self.copyright_holder.is_none() {
+                    return Err(ExcelDataError::InputError(format!("cannot find copyright_holder in resource '{:?}'. But copyright_holder is necessary for this kind of resource.", self)));
                 }
                 /*
                 if self.bitstream_permissions.is_none() {

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::num::ParseIntError;
 use std::ops::Index;
 use regex::Regex;
 use crate::parse_dm::domain::dasch_list::{DaSCHList, ListNode};
@@ -154,7 +155,26 @@ impl DaschValueFieldWrapper {
                 correct_list_values(&self.0, list)?;
             }
             ValueObject::TextValue => {
-                // we don't check if Text is correct
+                match curr_prop.gui_element {
+                    GUIElement::RICHTEXT => {
+                        // everything allowed?
+                    }
+                    GUIElement::SIMPLETEXT => {
+                        // no newline allowed if SimpleText
+                        for value in self.0.iter() {
+                            if value.contains("\n") {
+                                return Err(ExcelDataError::ParsingError(format!("The following value '{}' of property '{:?}' contains newline but newline is forbidden in SimpleText.", value, curr_prop)))
+                            }
+                        }
+                        // no xml-tags allowed if SimpleText or TextArea
+                    }
+                    GUIElement::TEXTAREA => {
+                        // no xml-tags allowed if SimpleText or TextArea
+                    }
+                    _ => {
+                        return Err(ExcelDataError::ParsingError(format!("Only 'RichtText, 'SimpleText' or 'TextArea' allowed for TextValue, but found: {:?}", curr_prop.gui_element)));
+                    }
+                }
             }
             ValueObject::DateValue => {
                 // check if date is valid DSP-Date
@@ -163,7 +183,15 @@ impl DaschValueFieldWrapper {
                 // we don't check if URI is correct
             }
             ValueObject::GeonameValue => {
-                // we don't check if Geoname is correct
+                // we don't check if Geoname is correct, but we check if Geoname is a number
+                for value in self.0.iter() {
+                    let _ = match value.parse::<usize>() {
+                        Ok(_) => {}
+                        Err(_) => {
+                            return Err(ExcelDataError::InputError(format!("Cannot parse Geoname-Number of '{:?}' to usize: {}", curr_prop, value)));
+                        }
+                    };
+                }
             }
             ValueObject::DecimalValue => {
                 // check if parsing is possible

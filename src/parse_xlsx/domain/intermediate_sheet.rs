@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::hash::Hash;
-use calamine::{Data, Range};
+use calamine::{Data, ExcelDateTime, Range};
 use crate::parse_xlsx::domain::data_col::{DataCol};
 use crate::parse_xlsx::errors::ExcelDataError;
 use crate::read_xlsx::sheet::Sheet;
@@ -62,13 +62,28 @@ fn clean_string(value: &String) -> String {
 fn parse_data_to_string(value: &Data) -> Result<String, ExcelDataError> {
     // parse data to string; adjust this according to needs later
     let value = match value {
-        Data::Int(number) => {number.to_string()}
-        Data::Float(number) => {number.to_string()}
-        Data::String(string) => {string.to_owned()}
-        Data::Bool(bool) => {bool.to_string()}
-        Data::DateTime(date) => {date.to_string()}
-        Data::DateTimeIso(date) => {date.to_owned()}
-        Data::DurationIso(duration) => {duration.to_owned()}
+        Data::Int(number) => {
+            number.to_string()
+        }
+        Data::Float(number) => {
+            number.to_string()}
+        Data::String(string) => {
+            string.to_owned()}
+        Data::Bool(bool) => {
+            bool.to_string()}
+        Data::DateTime(date) => {
+            match date.as_datetime(){
+                None => {
+                    return Err(ExcelDataError::ParsingError(format!("Cannot parse date as datetime: '{:?}'", date)))
+                }
+                Some(value) => {
+                    value.date().to_string()
+                }
+            }}
+        Data::DateTimeIso(date) => {
+            date.to_owned()}
+        Data::DurationIso(duration) => {
+            duration.to_owned()}
         Data::Error(err) => {
             return Err(ExcelDataError::CellError(err.to_owned()));
         }
@@ -85,5 +100,6 @@ pub fn intermediate_sheets(sheets: Vec<Sheet>) -> Result<Vec<IntermediateSheet>,
     for sheet in sheets.iter() {
         data_sheets.push(IntermediateSheetWrapper(sheet.to_owned()).to_intermediate_sheet()?);
     }
+
     Ok(data_sheets)
 }

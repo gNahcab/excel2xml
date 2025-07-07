@@ -174,6 +174,15 @@ fn add_props_of_res(mut transient_data_header: &mut TransientDataHeader, row_nr_
             ResourceSupplType::BitstreamPermissions => {
                 transient_data_header.add_bitstream_permissions_pos(pos.to_owned())?;
             }
+            ResourceSupplType::Authorship => {
+                transient_data_header.add_authorship_pos(pos.to_owned())?;
+            }
+            ResourceSupplType::License => {
+                transient_data_header.add_license_pos(pos.to_owned())?;
+            }
+            ResourceSupplType::CopyrightHolder => {
+                transient_data_header.add_copyright_holder_pos(pos.to_owned())?;
+            }
         }
     }
     Ok(())

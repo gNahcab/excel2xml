@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
+use clap::builder::TypedValueParser;
 use crate::parse_dm::domain::dasch_list::{DaSCHList, ListNode};
 use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::label::Label;
@@ -22,19 +23,28 @@ use crate::parse_hcl::methods_domain::update_with_server_method::ReplaceWithIRI;
 use crate::parse_xlsx::domain::data_col::{DataCol, TransientDataCol};
 use crate::parse_xlsx::domain::data_domain::date_period::DatePeriodWrapper;
 
-pub fn perform_identify(key_value_map: HashMap<String, String>, base_col: &Vec<String>) -> Vec<String> {
-    base_col.iter().map(|maybe_key| match key_value_map.get(maybe_key) {
-        None => { maybe_key.to_owned() }
-        Some(value) => {value.to_owned() }
-    }).collect()
+pub fn perform_identify(key_value_map: HashMap<String, String>, base_col: &Vec<String>, separator: &String) -> Vec<String> {
+    // expand by separator to vec and then replace all instances, finally using join to return as String
+    base_col.iter()
+        .map(|maybe_key| maybe_key.split(separator))
+        .map(|maybe_keys|maybe_keys.into_iter()
+            .map(|key|match key_value_map.get(key.trim()) {
+        None => {
+            if !key.starts_with("http") && !key.trim().is_empty(){
+                println!("NONE: {}", key);
+            }
+            key.to_string()}
+        Some(replace) => {
+            replace.to_owned()}
+    }).collect::<Vec<String>>()).map(|values|values.join(separator)).collect()
 }
 
 
-pub fn perform_replace_label_name(replace_label_name_method: &ReplaceLabelNameMethod, col_nr_to_cols_expanded: &HashMap<usize, DataCol>, header_to_col_nr_expanded: &HashMap<String, usize>, data_model: &&DataModel) -> Result<DataCol, HCLDataError> {
+pub fn perform_replace_label_name(replace_label_name_method: &ReplaceLabelNameMethod, col_nr_to_cols_expanded: &HashMap<usize, DataCol>, header_to_col_nr_expanded: &HashMap<String, usize>, data_model: &&DataModel, separator: &String) -> Result<DataCol, HCLDataError> {
     let header_number = find_header_number(&replace_label_name_method.input, col_nr_to_cols_expanded, header_to_col_nr_expanded)?;
     let col = &col_nr_to_cols_expanded.get(&header_number).unwrap();
     let labels_to_names = _labels_to_names(data_model, &replace_label_name_method.list_name)?;
-    let new_column = _replace_label_name(col, labels_to_names);
+    let new_column = _replace_label_name(col, labels_to_names, separator);
     Ok(DataCol::new(new_column, replace_label_name_method.output.to_owned()))
 }
 
@@ -60,57 +70,73 @@ fn _flatten_labels<'node>(list_nodes: &'node Vec<ListNode>, labels_names: &mut V
     }
 }
 
-fn _replace_label_name(data_col: &&DataCol, label_to_name: HashMap<String, String>) -> Vec<String> {
-    data_col.col.iter().map(|value| match label_to_name.get(value) {
-        None => {value.to_owned()}
-        Some(new_value) => {new_value.to_owned()}
-    }).collect()
+fn _replace_label_name(data_col: &&DataCol, label_to_name: HashMap<String, String>, separator: &String) -> Vec<String> {
+    data_col.col
+        .iter()
+        .map(|value| value.split(separator))
+        .map(|values|values.into_iter()
+            .map(|value| match label_to_name.get(value.trim()) {
+                None => {
+                    value.to_owned()
+                }
+                Some(new_value) => {
+                    new_value.to_owned()}})
+            .collect::<Vec<String>>())
+        .map(|values| values.join(separator))
+        .collect()
 }
-pub fn perform_replace_with_iri(replace_with_iri_method: &ReplaceWithIRI, col_nr_to_cols_expanded: &HashMap<usize, DataCol>, existing_header_to_col_nr: &HashMap<String, usize>, res_name_iri: &HashMap<String, HashMap<String, String>>) -> Result<DataCol, HCLDataError> {
+pub fn perform_replace_with_iri(replace_with_iri_method: &ReplaceWithIRI, col_nr_to_cols_expanded: &HashMap<usize, DataCol>, existing_header_to_col_nr: &HashMap<String, usize>, res_name_iri: &HashMap<String, HashMap<String, String>>,  separator: &String) -> Result<DataCol, HCLDataError> {
     let header_number = find_header_number(&replace_with_iri_method.input, col_nr_to_cols_expanded, existing_header_to_col_nr)?;
     let col = &col_nr_to_cols_expanded.get(&header_number).unwrap();
     let label_to_iri = match res_name_iri.get(replace_with_iri_method.resource.as_str()) {
         None => {return Err(HCLDataError::InputError(format!("Resource-name '{}' does not exist in res-name-to-label-iri. Existing names are: '{:?}'.", replace_with_iri_method.resource, res_name_iri.keys())))}
         Some(label_to_iri) => {label_to_iri}
     };
-    let new_column = _replace_with_iri(col, label_to_iri);
+    let new_column = _replace_with_iri(col, label_to_iri, separator);
     Ok(DataCol::new(new_column, replace_with_iri_method.output.to_owned()))
 }
 
-fn _replace_with_iri(data_col: &&DataCol, label_to_iri: &HashMap<String, String>) -> Vec<String> {
-    let mut new_col = vec![];
-    for label in data_col.col.iter() {
-        match label_to_iri.get(label.as_str()) {
-            None => {
-                new_col.push(label.to_owned());
-            }
-            Some(iri) => {
-                new_col.push(iri.to_owned());
-            }
-        }
-    }
-    new_col
+fn _replace_with_iri(data_col: &&DataCol, label_to_iri: &HashMap<String, String>, separator: &String) -> Vec<String> {
+    data_col.col
+        .iter()
+        .map(|value| value.split(separator))
+        .map(|values|values.into_iter()
+            .map(|label|  match label_to_iri.get(label.trim()) {
+                None => { label.to_owned()}
+                Some(iri) => { iri.to_owned()}})
+            .collect::<Vec<String>>())
+        .map(|values|values.join(separator))
+        .collect()
 }
 
-pub fn perform_replace(replace_method: &ReplaceMethod, col_nr_to_cols_expanded: &HashMap<usize, DataCol>, existing_header_to_col_nr: &HashMap<String, usize>) -> Result<DataCol, HCLDataError> {
+pub fn perform_replace(replace_method: &ReplaceMethod, col_nr_to_cols_expanded: &HashMap<usize, DataCol>, existing_header_to_col_nr: &HashMap<String, usize>, separator: &String) -> Result<DataCol, HCLDataError> {
     let header_number = find_header_number(&replace_method.input, col_nr_to_cols_expanded, existing_header_to_col_nr)?;
     let col = &col_nr_to_cols_expanded.get(&header_number).unwrap();
 
-    let new_column = _replace(col, &replace_method.new, &replace_method.old, &replace_method.behavior);
+    let new_column = _replace(col, &replace_method.new, &replace_method.old, &replace_method.behavior, separator);
     Ok(DataCol::new(new_column, replace_method.output.to_owned()))
 }
-pub fn perform_to_date(to_date_method: &ToDateMethod, col_nr_to_cols: &HashMap<usize, DataCol>, header_to_col_nr: &HashMap<String, usize>) -> Result<DataCol, HCLDataError> {
+pub fn perform_to_date(to_date_method: &ToDateMethod, col_nr_to_cols: &HashMap<usize, DataCol>, header_to_col_nr: &HashMap<String, usize>, separator: &String) -> Result<DataCol, HCLDataError> {
     let header_number = find_header_number(&to_date_method.input, col_nr_to_cols, header_to_col_nr)?;
     let col = &col_nr_to_cols.get(&header_number).unwrap();
-    let new_col = _to_date(col, &to_date_method.date_patterns, &to_date_method.date_type)?;
+    let new_col = _to_date(col, &to_date_method.date_patterns, &to_date_method.date_type, separator)?;
     Ok(DataCol::new(new_col, to_date_method.output.to_owned()))
 }
 
-fn _to_date(data_col: &&DataCol, date_patterns: &Vec<DatePattern>, date_type: &DateType) -> Result<Vec<String>, HCLDataError> {
+fn _to_date(data_col: &&DataCol, date_patterns: &Vec<DatePattern>, date_type: &DateType, separator: &String) -> Result<Vec<String>, HCLDataError> {
     let mut new_col = vec![];
     for value in data_col.col.iter() {
-        let date_period = DatePeriodWrapper(value.to_owned()).to_date_period(date_patterns, date_type)?.to_date_period_string();
-        new_col.push(date_period);
+        if value.is_empty() {
+            new_col.push("".to_string());
+        } else {
+            let mut dates = vec![];
+            for val in value.split(separator).into_iter() {
+                let date_period = DatePeriodWrapper(val.to_owned()).to_date_period(date_patterns, date_type)?.to_date_period_string();
+                dates.push(date_period);
+            }
+            let date_periods = dates.join(separator);
+            new_col.push(date_periods);
+        }
     }
     Ok(new_col)
 }
@@ -193,6 +219,7 @@ fn perform_int_create(int_create: &IntegerCreate, length: usize) -> DataCol {
 }
 
 pub fn perform_combine(combine_method: &CombineMethod, col_nr_to_cols: &HashMap<usize, DataCol>, header_to_col_nr: &HashMap<String, usize>) -> Result<DataCol, HCLDataError> {
+    todo!("add separator");
     let first_number = find_header_number(combine_method.input.get(0).unwrap(),col_nr_to_cols, header_to_col_nr)?;
     let second_number = find_header_number(combine_method.input.get(1).unwrap(), col_nr_to_cols, header_to_col_nr)?;
     let first_col = &col_nr_to_cols.get(&first_number).unwrap();
@@ -202,6 +229,7 @@ pub fn perform_combine(combine_method: &CombineMethod, col_nr_to_cols: &HashMap<
 }
 
 fn _combine(first_col: &&DataCol, second_col: &&DataCol, prefix: &Option<String>, suffix: &Option<String>, separator: &Option<String>) -> Vec<String> {
+    todo!("add separator");
     let mut new_col = vec![];
     // it is assumed first_col and second_col have same length
     for i in 0..first_col.col.len() {
@@ -230,6 +258,7 @@ pub fn perform_upper(upper_method: &UpperMethod, col_nr_to_cols: &HashMap<usize,
 }
 
 fn _upper(data_col: &DataCol) -> Vec<String> {
+    todo!("add separator");
     data_col.col.iter().map(|value| value.to_lowercase()).collect()
 }
 
@@ -242,17 +271,27 @@ pub fn perform_lower(lower_method: &LowerMethod, col_nr_to_cols: &HashMap<usize,
 }
 
 fn _lower(data_col: &DataCol) -> Vec<String> {
+    todo!("add separator");
     data_col.col.iter().map(|value| value.to_lowercase()).collect()
 }
-fn _replace(data_column: &&DataCol, new: &String, old: &String, behavior: &BehaviorType) -> Vec<String> {
+fn _replace(data_column: &&DataCol, new: &String, old: &String, behavior: &BehaviorType, separator: &String) -> Vec<String> {
      match behavior {
         BehaviorType::Lazy => {
             //let _ = data_column.column.iter().map(|value| transient_column.add_data(value.replacen(new, old, 1)));
-            data_column.col.iter().map(|value|value.replacen(new, old, 1)).collect()
+            data_column.col.iter()
+                .map(|value| value.split(separator))
+                .map(|values|values.into_iter()
+                    .map(|label| label.replacen(new, old, 1))
+                    .collect::<Vec<_>>()).map(|new_values|new_values.join(separator)).collect::<Vec<_>>()
         }
+
         BehaviorType::Greedy => {
             //let _ = data_column.column.iter().map(|value| transient_column.add_data(value.replace(new, old)));
-            data_column.col.iter().map(|value|value.replace(new, old)).collect()
+            data_column.col.iter()
+                .map(|value| value.split(separator))
+                .map(|values|values.into_iter()
+                    .map(|label| label.replace(old, new))
+                    .collect::<Vec<_>>()).map(|new_values|new_values.join(separator)).collect::<Vec<_>>()
         }
     }
 }
@@ -282,8 +321,6 @@ mod test {
     use crate::parse_hcl::methods_domain::date_pattern::DatePattern;
     use crate::parse_hcl::methods_domain::date_type::DateType;
     use crate::parse_hcl::methods_domain::to_date_method::ToDateMethod;
-    use crate::parse_xlsx::domain::data_col::TransientDataCol;
-    use crate::parse_xlsx::domain::manipulations::_to_date;
 
     #[test]
     fn test_to_date() {

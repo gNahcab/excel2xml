@@ -33,7 +33,7 @@ impl DatePeriod {
         let day2: String = Date::extend_string(self.date2.day.to_string(), 2);
         let month2: String = Date::extend_string(self.date2.month.to_string(), 2);
         let year2: String = Date::extend_string(self.date2.year.to_string(), 4);
-        let date = format!("{}:{:?}:{}:{}:{}:{:?}:{}:{}:{}", calendar, epoch1, year1, month1, day1, epoch2, year2, month2, day2);
+        let date = format!("{}:{:?}:{}-{}-{}:{:?}:{}-{}-{}", calendar, epoch1, year1, month1, day1, epoch2, year2, month2, day2);
 
         date
     }

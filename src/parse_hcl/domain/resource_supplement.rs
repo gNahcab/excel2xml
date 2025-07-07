@@ -6,13 +6,16 @@ pub struct ResourceSupplement {
     pub suppl_type: ResourceSupplType
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ResourceSupplType {
     IRI,
     ARK,
     Permissions,
     Bitstream,
-    BitstreamPermissions
+    BitstreamPermissions,
+    Authorship,
+    License,
+    CopyrightHolder,
 }
 pub fn to_res_supplement_type(key: &str) -> Result<ResourceSupplType, HCLDataError> {
     match key {
@@ -30,6 +33,15 @@ pub fn to_res_supplement_type(key: &str) -> Result<ResourceSupplType, HCLDataErr
         }
         "bitstream-permissions" => {
             Ok(ResourceSupplType::BitstreamPermissions)
+        }
+        "license" => {
+            Ok(ResourceSupplType::License)
+        }
+        "copyright_holder" => {
+            Ok(ResourceSupplType::CopyrightHolder)
+        }
+        "authorship" => {
+            Ok(ResourceSupplType::Authorship)
         }
         _ => {
             return Err(HCLDataError::ParsingError(format!("Unknown Resource-Suppl-Type: '{}'. Add first.", key)))

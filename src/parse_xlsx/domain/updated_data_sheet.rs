@@ -27,7 +27,7 @@ impl UpdatedDataSheet {
 pub(crate) struct UpdatedDataSheetWrapper(pub(crate) ExpandedDataSheet);
 
 impl UpdatedDataSheetWrapper {
-    pub(crate) fn to_updated_data_sheet(&self, expanded_data_sheets: &Vec<ExpandedDataSheet>, res_name_to_updates: &HashMap<String, Transformations>) -> Result<UpdatedDataSheet, HCLDataError> {
+    pub(crate) fn to_updated_data_sheet(&self, expanded_data_sheets: &Vec<ExpandedDataSheet>, res_name_to_updates: &HashMap<String, Transformations>, separator: &String) -> Result<UpdatedDataSheet, HCLDataError> {
         // update sheet
         let (col_nr_to_cols, headers_to_col_nr) = match res_name_to_updates.get(self.0.res_name.as_str()) {
             None => {
@@ -35,7 +35,7 @@ impl UpdatedDataSheetWrapper {
                 (self.0.col_nr_to_cols.to_owned(), self.0.header_to_col_nr.to_owned())
             }
             Some(transformations) => {
-                update_sheet(self.0.col_nr_to_cols.to_owned(), self.0.header_to_col_nr.to_owned(), expanded_data_sheets, transformations)?
+                update_sheet(self.0.col_nr_to_cols.to_owned(), self.0.header_to_col_nr.to_owned(), expanded_data_sheets, transformations, separator)?
             }
         };
         let updated_sheet = UpdatedDataSheet::new(col_nr_to_cols, headers_to_col_nr, self.0.res_name.to_owned());
@@ -43,11 +43,11 @@ impl UpdatedDataSheetWrapper {
     }
 }
 
-fn update_sheet(mut col_nr_to_col: HashMap<usize, DataCol>, mut header_to_col_nr: HashMap<String, usize>, expanded_data_sheets: &Vec<ExpandedDataSheet>, transformations: &Transformations) -> Result<(HashMap<usize, DataCol>, HashMap<String, usize>), HCLDataError> {
+fn update_sheet(mut col_nr_to_col: HashMap<usize, DataCol>, mut header_to_col_nr: HashMap<String, usize>, expanded_data_sheets: &Vec<ExpandedDataSheet>, transformations: &Transformations, separator: &String) -> Result<(HashMap<usize, DataCol>, HashMap<String, usize>), HCLDataError> {
     // for now only identify method uses multiple resources
     for identify_method in transformations.identify_methods.iter() {
         let expanded_sheet = get_correct_expanded_sheet(expanded_data_sheets, &identify_method.resource_name)?;
-        let data_col:DataCol = identify_col(expanded_sheet, identify_method, &col_nr_to_col, &header_to_col_nr)?;
+        let data_col:DataCol = identify_col(expanded_sheet, identify_method, &col_nr_to_col, &header_to_col_nr, separator)?;
         add_to_header_cols(&mut header_to_col_nr, &mut col_nr_to_col, data_col);
     }
     Ok((col_nr_to_col, header_to_col_nr))
@@ -89,11 +89,11 @@ fn _key_to_value_map(expanded_data_sheet: &ExpandedDataSheet, identify_method:  
     let mut key_to_value = HashMap::new();
     let (key_col, value_col) = _key_value_column(expanded_data_sheet, identify_method)?;
     for (pos, key) in key_col.iter().enumerate() {
-        key_to_value.insert(key.to_owned(), value_col.get(pos).unwrap().to_owned());
+        key_to_value.insert(key.trim().to_owned(), value_col.get(pos).unwrap().trim().to_owned());
     }
     Ok(key_to_value)
 }
-fn identify_col(other_expaneded_sheet: &ExpandedDataSheet, identify_method: &IdentifyMethod, col_nr_to_cols: &HashMap<usize, DataCol>, header_to_col_nr: &HashMap<String, usize>) -> Result<DataCol, HCLDataError> {
+fn identify_col(other_expaneded_sheet: &ExpandedDataSheet, identify_method: &IdentifyMethod, col_nr_to_cols: &HashMap<usize, DataCol>, header_to_col_nr: &HashMap<String, usize>, separator: &String) -> Result<DataCol, HCLDataError> {
     let key_to_value = _key_to_value_map(other_expaneded_sheet, &identify_method)?;
     let base_pos = match header_to_col_nr.get(identify_method.input.as_str()) {
         None => {
@@ -102,8 +102,7 @@ fn identify_col(other_expaneded_sheet: &ExpandedDataSheet, identify_method: &Ide
         Some(number) => {number}
     };
     let base_col = &col_nr_to_cols.get(base_pos).unwrap().col;
-    let new_col = perform_identify(key_to_value, base_col);
-    println!("new-identify: {:?}", new_col);
+    let new_col = perform_identify(key_to_value, base_col, separator);
     Ok(DataCol::new(new_col, identify_method.output.to_owned()))
 }
 

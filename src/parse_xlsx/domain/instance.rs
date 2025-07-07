@@ -1,8 +1,9 @@
+use std::cmp::PartialEq;
 use std::collections::HashMap;
 use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::super_field::SuperField;
 use crate::parse_hcl::domain::prop_supplement::{PropSupplement};
-use crate::parse_hcl::domain::resource_supplement::{ResourceSupplement};
+use crate::parse_hcl::domain::resource_supplement::{ResourceSupplType, ResourceSupplement};
 use crate::parse_xlsx::domain::dasch_value_field::{DaschValueField, FieldsWrapper};
 use crate::parse_xlsx::domain::data_row::DataRow;
 use crate::parse_xlsx::domain::header::Header;
@@ -19,6 +20,9 @@ pub struct Instance {
     pub bitstream: Option<String>,
     pub bitstream_permissions: Option<Permissions>,
     pub dasch_value_fields:  Vec<DaschValueField>,
+    pub authorship: Option<Vec<String>>,
+    pub copyright_holder: Option<String>,
+    pub license: Option<String>
 }
 
 impl Instance {
@@ -32,6 +36,9 @@ impl Instance {
             bitstream: resource_data.bitstream,
             bitstream_permissions: resource_data.bitstream_permissions,
             dasch_value_fields,
+            authorship: resource_data.authorship,
+            copyright_holder: resource_data.copyright_holder,
+            license: resource_data.license,
         }
     }
 }
@@ -101,7 +108,6 @@ impl TransientInstance {
 
 pub struct InstanceWrapper(pub(crate) DataRow);
 
-
 impl InstanceWrapper {
     pub(crate) fn to_instance(&self, data_model: &&DataModel, separator: &String, row_nr_to_propname: &HashMap<usize, String>, row_nr_to_prop_suppl: &HashMap<usize, PropSupplement>, row_nr_to_res_suppl: &HashMap<usize, ResourceSupplement>, row_nr_to_id_label: &HashMap<usize, Header>, super_field: &SuperField, set_permissions: bool) -> Result<Instance, ExcelDataError> {
         let mut transient_instance = TransientInstance::new();
@@ -125,7 +131,7 @@ impl InstanceWrapper {
             }
             if row_nr_to_res_suppl.contains_key(&row_nr) {
                 let res_suppl = row_nr_to_res_suppl.get(&row_nr).unwrap();
-                if entries.len() != 1 {
+                if entries.len() != 1 && !res_suppl.suppl_type.eq(&ResourceSupplType::Authorship)  {
                     return Err(ExcelDataError::InputError(format!("Entries of res-suppl should be 1, but found '{}' number of entries in :'{:?}'", entries.len(), entries)));
                 }
                 transient_instance.add_res_suppl(res_suppl.to_owned(), entry.to_owned());

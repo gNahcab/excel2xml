@@ -2,12 +2,10 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use csv::StringRecord;
-use serde_json::Value;
 use crate::api::download_resources::metadata_download;
 use crate::api::error::APICallError;
 use crate::parse_dm::domain::data_model::DataModel;
 use crate::errors::Excel2XmlError;
-use crate::parse_dm::errors::DataModelError;
 use crate::parse_hcl::domain::parse_info::ParseInformation;
 use crate::parse_hcl::domain::parse_info_draft::ParseInformationDraft;
 use crate::parse_xlsx::domain::data_container::{DataContainer, DataContainerWrapper};
@@ -35,7 +33,7 @@ pub fn write_hcl_default(folder_path: &PathBuf) {
         panic!("Found {} datamodel-paths, but should find exactly one. datamodel-paths: {:?}", dm_paths.len(), dm_paths);
     };
     let file = read_from_json(dm_path).unwrap();
-    let datamodel = load_data_model(file).unwrap();
+    let datamodel = file.try_into().unwrap();
     let xlsx_paths = filter_paths_based_on_extension(folder_path, "xlsx").unwrap();
     let mut file_name_table_name_table_headers = vec![];
     for path in xlsx_paths {
@@ -71,7 +69,7 @@ pub fn excel2xml(hcl_path: &PathBuf) {
     // todo: data-models should be loaded from resources/data_models, not from path specified in hcl (download from server, if data-model is not there or replace if update is indicated)
 
     let file = read_from_json(&parse_info.dm_path).unwrap();
-    let data_model = load_data_model(file).unwrap();
+    let data_model = file.try_into().unwrap();
     parse_info.compare_parse_info_to_datamodel(&data_model).unwrap();
 
     //&parse_info.compare_parse_info_to_datamodel(&data_model, special_propnames)?;
@@ -81,8 +79,8 @@ pub fn excel2xml(hcl_path: &PathBuf) {
     // prepare
     let intermediate_sheets: Vec<IntermediateSheet> = intermediate_sheets(sheets).unwrap();
     // edit
-    let expanded_data_sheets:Vec<ExpandedDataSheet> = expanded_data_sheets(intermediate_sheets, &parse_info, &data_model, res_name_iri).unwrap();
-    let updated_data_sheets: Vec<UpdatedDataSheet> = updated_data_sheets(expanded_data_sheets, &parse_info.res_name_to_updates).unwrap();
+    let expanded_data_sheets:Vec<ExpandedDataSheet> = expanded_data_sheets(intermediate_sheets, &parse_info, &data_model, res_name_iri, &parse_info.separator).unwrap();
+    let updated_data_sheets: Vec<UpdatedDataSheet> = updated_data_sheets(expanded_data_sheets, &parse_info.res_name_to_updates, &parse_info.separator).unwrap();
     // structure & review
     let mut data_containers: Vec<DataContainer> = data_containers(&updated_data_sheets, &data_model, &parse_info).unwrap();
     for  data_container in data_containers.iter() {
@@ -151,14 +149,10 @@ fn call_necessary(transformations: &Vec<&Transformations>) -> bool {
     call_necessary
 }
 
-fn load_data_model(file: Value) -> Result<DataModel, DataModelError> {
-    file.try_into()
-}
-
-fn updated_data_sheets(expanded_data_sheets: Vec<ExpandedDataSheet>, res_name_to_updates: &HashMap<String, Transformations>) -> Result<Vec<UpdatedDataSheet>, HCLDataError> {
+fn updated_data_sheets(expanded_data_sheets: Vec<ExpandedDataSheet>, res_name_to_updates: &HashMap<String, Transformations>, separator: &String) -> Result<Vec<UpdatedDataSheet>, HCLDataError> {
     let mut updated_data_sheets = vec![];
     for expanded_data_sheet in expanded_data_sheets.iter() {
-        let updated_data_sheet = UpdatedDataSheetWrapper(expanded_data_sheet.to_owned()).to_updated_data_sheet(&expanded_data_sheets, res_name_to_updates)?;
+        let updated_data_sheet = UpdatedDataSheetWrapper(expanded_data_sheet.to_owned()).to_updated_data_sheet(&expanded_data_sheets, res_name_to_updates, separator)?;
         updated_data_sheets.push(updated_data_sheet);
     }
     Ok(updated_data_sheets)

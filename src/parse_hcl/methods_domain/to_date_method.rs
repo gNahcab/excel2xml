@@ -50,6 +50,9 @@ impl TransientStructureToDateMethod {
         if self.date_type.is_none() {
             return Err(HCLDataError::ParsingError(format!("error in to_date-method '{:?}'. 'date_type'-attribute not provided", self)));
         }
+        if self.date_pattern.is_empty() {
+            return Err(HCLDataError::ParsingError(format!("error in to_date-method '{:?}'. 'pattern'-attribute not provided", self)));
+        }
         Ok(())
     }
 }
