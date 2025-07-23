@@ -10,7 +10,7 @@ use crate::parse_hcl::domain::parse_info::ParseInformation;
 use crate::parse_hcl::domain::parse_info_draft::ParseInformationDraft;
 use crate::parse_xlsx::domain::data_container::{DataContainer, DataContainerWrapper};
 use crate::parse_xlsx::domain::expanded_data_sheet::{expanded_data_sheets, ExpandedDataSheet};
-use crate::parse_xlsx::domain::intermediate_sheet::{intermediate_sheets, IntermediateSheet};
+use crate::parse_xlsx::domain::intermediate_sheet::{intermediate_sheets, parse_data_to_string, IntermediateSheet};
 use crate::parse_xlsx::errors::ExcelDataError;
 use crate::parse_hcl::errors::HCLDataError;
 use crate::parse_hcl::transformations::Transformations;
@@ -37,12 +37,12 @@ pub fn write_hcl_default(folder_path: &PathBuf) {
     let xlsx_paths = filter_paths_based_on_extension(folder_path, "xlsx").unwrap();
     let mut file_name_table_name_table_headers = vec![];
     for path in xlsx_paths {
-        file_name_table_name_table_headers.push(extract_file_name_table_name_header(&path));
+        file_name_table_name_table_headers.push(extract_file_name_table_name_header(&path).unwrap());
     }
-    write_hcl(file_name_table_name_table_headers, datamodel).unwrap();
+    write_hcl(file_name_table_name_table_headers, datamodel, dm_path).unwrap();
 }
 
-fn extract_file_name_table_name_header(path: &PathBuf) -> (String, String, Vec<String>) {
+fn extract_file_name_table_name_header(path: &PathBuf)  -> Result<(String, String, Vec<String>), Excel2XmlError> {
         let file_name = path.file_name().unwrap().to_str().unwrap().to_string();
         let xlsx_tables = read_xlsx(&path).unwrap();
         // attention: only first table is taken
@@ -50,9 +50,13 @@ fn extract_file_name_table_name_header(path: &PathBuf) -> (String, String, Vec<S
             None => {panic!("Did not find tables in {:?}", path)}
             Some(name_and_table) => {name_and_table}
         };
-        let header_rows = table.rows().take(0);
-        let header_rows: Vec<String> = header_rows.last().unwrap().to_owned().iter().map(|value|value.to_string()).collect();
-        (file_name, table_name.to_owned(), header_rows)
+        let header_row: _ = table.rows().take(1).collect::<Vec<_>>()[0];
+        let mut headers: Vec<String> = vec![];
+        for header in header_row.iter() {
+            let header = parse_data_to_string(header)?;
+            headers.push(header);
+        }
+        Ok((file_name, table_name.to_owned(), headers))
 }
 pub fn excel2xml(hcl_path: &PathBuf) {
     // canonicalize paths

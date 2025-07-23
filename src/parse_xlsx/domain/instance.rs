@@ -151,7 +151,7 @@ impl InstanceWrapper {
         }
         transient_instance.found_id_label()?;
         let dasch_value_fields = FieldsWrapper(transient_instance.propname_to_values.to_owned(), transient_instance.prop_name_to_prop_suppl_values.to_owned()).to_dasch_value_fields(data_model, set_permissions)?;
-        let resource_data = to_resource_data(&transient_instance.res_suppl_values, super_field, set_permissions)?;
+        let resource_data = to_resource_data(&transient_instance.res_suppl_values, super_field, set_permissions, separator)?;
         Ok(Instance::new(dasch_value_fields, resource_data, transient_instance.id.unwrap(), transient_instance.label.unwrap()))
     }
 }

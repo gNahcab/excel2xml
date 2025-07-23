@@ -91,12 +91,12 @@ impl TransientResourceData {
         }
         Ok(())
     }
-    pub(crate) fn add_authorship(&mut self, authorship: String) -> Result<(), ExcelDataError> {
+    pub(crate) fn add_authorship(&mut self, authorship: String, separator: &String) -> Result<(), ExcelDataError> {
         if self.authorship.is_some() {
             return Err(ExcelDataError::InputError(format!("multiple authorship-values for resource: First: '{:?}', Second: '{:?}'", self.authorship.as_ref().unwrap(), authorship)));
         }
-        todo!("{}",authorship);
-        //self.authorship = Some(authorship);
+        let authorships: Vec<String> = authorship.split(separator).into_iter().map(|value|value.to_string()).collect();
+        self.authorship = Some(authorships);
         Ok(())
     }
     pub(crate) fn add_license(&mut self, license: String) -> Result<(), ExcelDataError> {
@@ -150,7 +150,7 @@ impl TransientResourceData {
     }
 
 }
-pub fn to_resource_data(res_suppl_values: &Vec<(ResourceSupplement, String)>, super_field: &SuperField, set_permissions: bool) -> Result<ResourceSupplData, ExcelDataError> {
+pub fn to_resource_data(res_suppl_values: &Vec<(ResourceSupplement, String)>, super_field: &SuperField, set_permissions: bool, separator: &String) -> Result<ResourceSupplData, ExcelDataError> {
     let mut transient_resource_suppl = TransientResourceData::new();
     for (res_suppl, value) in res_suppl_values {
         match res_suppl.suppl_type {
@@ -162,7 +162,7 @@ pub fn to_resource_data(res_suppl_values: &Vec<(ResourceSupplement, String)>, su
                 transient_resource_suppl.add_bitstream(value.to_owned())?;
             }
             ResourceSupplType::Authorship => {
-                transient_resource_suppl.add_authorship(value.to_owned())?;
+                transient_resource_suppl.add_authorship(value.to_owned(), separator)?;
             }
             ResourceSupplType::License => {
                 transient_resource_suppl.add_license(value.to_owned())?;

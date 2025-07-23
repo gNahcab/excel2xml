@@ -59,7 +59,7 @@ fn clean_string(value: &String) -> String {
     value.trim().replace("\n", "")
 }
 
-fn parse_data_to_string(value: &Data) -> Result<String, ExcelDataError> {
+pub fn parse_data_to_string(value: &Data) -> Result<String, ExcelDataError> {
     // parse data to string; adjust this according to needs later
     let value = match value {
         Data::Int(number) => {

@@ -141,8 +141,8 @@ fn add_shortcode_default_ontology_attributes(knora: &mut XMLElement, shortcode: 
 
 fn bitstream_child(resource: &Instance) -> XMLElement {
     let mut bitstream = XMLElement::new("bitstream");
-    bitstream.add_attribute("copyright_holder", &resource.copyright_holder.as_ref().unwrap());
-    bitstream.add_attribute("authorship", format!("{:?}", &resource.authorship.as_ref().unwrap()));
+    bitstream.add_attribute("copyright-holder", &resource.copyright_holder.as_ref().unwrap());
+    bitstream.add_attribute("authorship-id", &resource.authorship.as_ref().unwrap().join(","));
     bitstream.add_attribute("license", &resource.license.as_ref().unwrap());
     bitstream.add_text(resource.bitstream.as_ref().unwrap());
     if resource.bitstream_permissions.is_some() {
