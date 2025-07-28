@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::hash::Hash;
-use calamine::{Data, ExcelDateTime, Range};
+use calamine::{Data, DataType, ExcelDateTime, Range};
 use crate::parse_xlsx::domain::data_col::{DataCol};
 use crate::parse_xlsx::errors::ExcelDataError;
 use crate::read_xlsx::sheet::Sheet;
@@ -41,6 +41,9 @@ impl IntermediateSheetWrapper {
         for row in self.0.table.rows() {
             for (col_nr, value) in row.iter().enumerate() {
                 let value: String = parse_data_to_string(value)?;
+                if col_nr == 40 {
+                    println!("VALUE: {}", value);
+                }
                 cols[col_nr].push(value)
             }
         }
@@ -72,14 +75,14 @@ pub fn parse_data_to_string(value: &Data) -> Result<String, ExcelDataError> {
         Data::Bool(bool) => {
             bool.to_string()}
         Data::DateTime(date) => {
-            match date.as_datetime(){
-                None => {
-                    return Err(ExcelDataError::ParsingError(format!("Cannot parse date as datetime: '{:?}'", date)))
+                    if date.is_datetime() {
+                        value.as_date().unwrap().to_string()
+                    } else if date.is_duration() {
+                        date.as_duration().unwrap().to_string()
+                    } else {
+                        return Err(ExcelDataError::ParsingError(format!("Cannot parse date as datetime or duration: '{:?}'", date)))
+                    }
                 }
-                Some(value) => {
-                    value.date().to_string()
-                }
-            }}
         Data::DateTimeIso(date) => {
             date.to_owned()}
         Data::DurationIso(duration) => {
