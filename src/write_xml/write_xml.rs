@@ -27,30 +27,54 @@ pub fn write_xml_example() {
 }
 pub fn write_xml(data_containers: &Vec<DataContainer>, data_model: &DataModel) -> Result<(), WriteXMLError> {
     let mut knora = XMLElement::new("knora");
+    let hash_to_id_authors = create_authorship_hash_map(data_containers);
+    add_authorship_element(&mut knora, &hash_to_id_authors);
     add_default_knora_attributes(&mut knora);
     add_shortcode_default_ontology_attributes(&mut knora, &data_model.shortcode.to_owned(), &data_model.shortname);
 
-    let mut hash_to_id_authors: HashMap<String, (String, Vec<String>)> = HashMap::new();
     let new_path = new_path(&format!("data_{}_{}",data_model.shortcode, data_model.shortname));
     let file = File::create(new_path.as_str())?;
     for data_container in data_containers {
         let restype = ":".to_string() + data_container.res_name.as_str();
-        add_resources(&data_container.resources, &mut hash_to_id_authors, restype, &data_model, &mut knora);
+        add_resources(&data_container.resources, &hash_to_id_authors, restype, &data_model, &mut knora);
         // todo allow here returning single files
         // let path = new_path(&data_container.res_name);
     }
-    finish_knora_and_write(&mut knora, hash_to_id_authors, file)?;
+    knora.write(file)?;
     println!("wrote-file {:?}", new_path);
     Ok(())
 }
 
+fn create_authorship_hash_map(data_containers: &Vec<DataContainer>) -> HashMap<String, (String, Vec<String>)> {
+    // authorship-ids have to be created here, because schema.xsd of dsp-tools allows only to add it at the beginning of the xml-file
+    let mut hash_to_id_authors: HashMap<String, (String, Vec<String>)> = HashMap::new();
+    for container in data_containers {
+        for res in &container.resources {
+            let authorship = res.authorship.as_ref();
+            let mut authorship = if authorship.is_none() {
+                continue;
+            } else {
+                authorship.unwrap().to_vec()
+            };
+            authorship.sort();
+            let hash_string = authorship.join("");
+            match hash_to_id_authors.get(&hash_string) {
+                Some(_) => {}
+                None => {
+                    let id = format!("authorship_{}", hash_to_id_authors.len() + 1);
+                    hash_to_id_authors.insert(hash_string, (id.to_owned(), authorship.to_vec()));
+                }
+            };
+        }
+    }
+    hash_to_id_authors
+}
+
 fn finish_knora_and_write(mut knora: &mut XMLElement, hash_to_id_authors: HashMap<String, (String, Vec<String>)>, file: File) -> Result<(), WriteXMLError> {
-    add_authorship_element(&mut knora, hash_to_id_authors);
-    knora.write(file)?;
     Ok(())
 }
 
-fn add_resources(resources: &Vec<Instance>, hash_to_id_authors: &mut HashMap<String, (String, Vec<String>)>, restype: String, data_model: &&DataModel, knora: &mut XMLElement) {
+fn add_resources(resources: &Vec<Instance>, hash_to_id_authors: &HashMap<String, (String, Vec<String>)>, restype: String, data_model: &&DataModel, knora: &mut XMLElement) {
     for resource in resources {
         let mut xml_res = xml_resource(&resource, hash_to_id_authors, &restype);
         add_values(&resource.dasch_value_fields, &mut xml_res, data_model);
@@ -97,7 +121,7 @@ fn value(dasch_value: &DaschValue, sub_xml_object: &String) -> XMLElement {
     prop_value
 }
 
-fn xml_resource(resource: &Instance, mut hash_to_id_authors: &mut HashMap<String, (String, Vec<String>)>, restype: &String) -> XMLElement {
+fn xml_resource(resource: &Instance, hash_to_id_authors:  &HashMap<String, (String, Vec<String>)>, restype: &String) -> XMLElement {
     let mut xml_res = XMLElement::new("resource");
     xml_res.add_attribute("label", &resource.label);
     xml_res.add_attribute("id", &resource.id);
@@ -108,14 +132,13 @@ fn xml_resource(resource: &Instance, mut hash_to_id_authors: &mut HashMap<String
     }
     if resource.bitstream.is_some() {
         xml_res.add_child(bitstream_child(
-            &resource,
-            &mut hash_to_id_authors,
+            &resource,  hash_to_id_authors,
         ));
     }
     xml_res
 }
 
-fn add_authorship_element(knora: &mut XMLElement, hash_to_id_authorship_group: HashMap<String, (String, Vec<String>)>) {
+fn add_authorship_element(knora: &mut XMLElement, hash_to_id_authorship_group: &HashMap<String, (String, Vec<String>)>) {
     /*
     <authorship id="authorship_1">
         <author>Lukas Rosenthaler</author>
@@ -125,13 +148,14 @@ fn add_authorship_element(knora: &mut XMLElement, hash_to_id_authorship_group: H
         return;
     }
     for (id, authorship_group) in hash_to_id_authorship_group.values() {
-        let authorship = XMLElement::new("authorship");
-        knora.add_attribute("id", id);
+        let mut authorship = XMLElement::new("authorship");
+        authorship.add_attribute("id", id);
         for member in authorship_group {
             let mut author = XMLElement::new("author");
             author.add_text(member);
-            knora.add_child(author);
+            authorship.add_child(author);
         }
+        knora.add_child(authorship);
     }
 }
 
@@ -191,20 +215,13 @@ fn add_shortcode_default_ontology_attributes(knora: &mut XMLElement, shortcode: 
 }
 
 
-fn bitstream_child(resource: &Instance, hash_to_id_authors: &mut HashMap<String, (String, Vec<String>)>) -> XMLElement {
+fn bitstream_child(resource: &Instance, hash_to_id_authors: &HashMap<String, (String, Vec<String>)>) -> XMLElement {
     // hash vector entries
     let mut values =  resource.authorship.as_ref().unwrap().to_vec();
     // sort so that we don't have any duplicates, like Vec<a,b,c> and Vec<b, a, c> etc.
     values.sort();
     let hash_id = resource.authorship.as_ref().unwrap().join("");
-    let id = match hash_to_id_authors.get(&hash_id) {
-        Some((id, values)) => {id.to_owned()}
-        None => {
-            let id = format!("authorship_{}", hash_to_id_authors.len() + 1);
-            hash_to_id_authors.insert(hash_id, (id.to_owned(), values.to_vec()));
-            id
-        }
-    };
+    let (id, _) =  hash_to_id_authors.get(&hash_id).unwrap();
     let mut bitstream = XMLElement::new("bitstream");
     bitstream.add_attribute("copyright-holder", &resource.copyright_holder.as_ref().unwrap());
     bitstream.add_attribute("authorship-id", id);
