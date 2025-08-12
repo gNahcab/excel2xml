@@ -1,5 +1,6 @@
 use crate::parse_dm::domain::super_field::SuperField;
 use crate::parse_hcl::domain::resource_supplement::{ResourceSupplType, ResourceSupplement};
+use crate::parse_xlsx::domain::license::{to_license, License};
 use crate::parse_xlsx::domain::permissions::{Permissions, PermissionsWrapper};
 use crate::parse_xlsx::errors::ExcelDataError;
 
@@ -11,7 +12,7 @@ pub struct ResourceSupplData {
     pub bitstream_permissions: Option<Permissions>,
     pub authorship: Option<Vec<String>>,
     pub copyright_holder: Option<String>,
-    pub license: Option<String>
+    pub license: Option<License>
 }
 
 impl ResourceSupplData {
@@ -36,7 +37,7 @@ struct TransientResourceData {
     bitstream: Option<String>,
     bitstream_permissions: Option<Permissions>,
     authorship: Option<Vec<String>>,
-    license: Option<String>,
+    license: Option<License>,
     copyright_holder: Option<String> 
 }
 
@@ -99,9 +100,9 @@ impl TransientResourceData {
         self.authorship = Some(authorships);
         Ok(())
     }
-    pub(crate) fn add_license(&mut self, license: String) -> Result<(), ExcelDataError> {
+    pub(crate) fn add_license(&mut self, license: License) -> Result<(), ExcelDataError> {
         if self.license.is_some() {
-            return Err(ExcelDataError::InputError(format!("multiple license-values for resource: First: '{}', Second: '{}'", self.license.as_ref().unwrap(), license)));
+            return Err(ExcelDataError::InputError(format!("multiple license-values for resource: First: '{:?}', Second: '{:?}'", self.license.as_ref().unwrap(), license)));
         }
         self.license = Some(license);
         Ok(())
@@ -165,7 +166,8 @@ pub fn to_resource_data(res_suppl_values: &Vec<(ResourceSupplement, String)>, su
                 transient_resource_suppl.add_authorship(value.to_owned(), separator)?;
             }
             ResourceSupplType::License => {
-                transient_resource_suppl.add_license(value.to_owned())?;
+                let license = to_license(value)?;
+                transient_resource_suppl.add_license(license)?;
             }
             ResourceSupplType::CopyrightHolder => {
                 transient_resource_suppl.add_copyright_holder(value.to_owned())?;

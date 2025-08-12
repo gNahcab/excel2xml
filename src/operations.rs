@@ -22,7 +22,7 @@ use crate::read_json::get_file::read_from_json;
 use crate::read_xlsx::get_file::read_xlsx;
 use crate::read_xlsx::sheet::{sheets, Sheet};
 use crate::write_csv::write_csv::write_csv;
-use crate::write_hcl::write_hcl::write_hcl;
+use crate::create_hcl::write_hcl::write_hcl;
 use crate::write_xml::write_xml::write_xml;
 
 pub fn write_hcl_default(folder_path: &PathBuf) {
@@ -86,10 +86,8 @@ pub fn excel2xml(hcl_path: &PathBuf) {
     let expanded_data_sheets:Vec<ExpandedDataSheet> = expanded_data_sheets(intermediate_sheets, &parse_info, &data_model, res_name_iri, &parse_info.separator).unwrap();
     let updated_data_sheets: Vec<UpdatedDataSheet> = updated_data_sheets(expanded_data_sheets, &parse_info.res_name_to_updates, &parse_info.separator).unwrap();
     // structure & review
-    let mut data_containers: Vec<DataContainer> = data_containers(&updated_data_sheets, &data_model, &parse_info).unwrap();
-    for  data_container in data_containers.iter() {
-        write_xml(&data_container, &data_model, &parse_info).unwrap();
-    }
+    let data_containers: Vec<DataContainer> = data_containers(&updated_data_sheets, &data_model, &parse_info).unwrap();
+    write_xml(&data_containers, &data_model).unwrap();
 }
 
 fn res_names_iris(transformations: &Vec<&Transformations>, shortcode: &String) -> Result<HashMap<String, HashMap<String, String>>, Excel2XmlError> {

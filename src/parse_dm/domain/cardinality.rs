@@ -1,6 +1,6 @@
 use crate::parse_dm::errors::DataModelError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Cardinality {
     ZeroToN,
     ZeroToOne,

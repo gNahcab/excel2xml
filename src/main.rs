@@ -10,7 +10,7 @@ mod cli;
 mod operations;
 mod expression_trait;
 mod api;
-mod write_hcl;
+mod create_hcl;
 mod path_operations;
 mod write_csv;
 mod read_csv;

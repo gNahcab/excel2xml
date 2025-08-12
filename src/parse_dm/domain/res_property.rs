@@ -2,7 +2,7 @@ use serde_json::Value;
 use crate::parse_dm::domain::cardinality::{to_cardinality, Cardinality};
 use crate::parse_dm::errors::DataModelError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ResProperty {
     pub(crate) propname: String,
     pub (crate) cardinality: Cardinality,

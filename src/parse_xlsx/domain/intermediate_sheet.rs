@@ -41,9 +41,6 @@ impl IntermediateSheetWrapper {
         for row in self.0.table.rows() {
             for (col_nr, value) in row.iter().enumerate() {
                 let value: String = parse_data_to_string(value)?;
-                if col_nr == 40 {
-                    println!("VALUE: {}", value);
-                }
                 cols[col_nr].push(value)
             }
         }

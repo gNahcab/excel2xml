@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use std::fs::File;
 use simple_xml_builder::XMLElement;
 use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::object::ValueObject;
-use crate::parse_hcl::domain::parse_info::ParseInformation;
+use crate::parse_xlsx::domain::dasch_value::DaschValue;
+use crate::parse_xlsx::domain::dasch_value_field::DaschValueField;
 use crate::parse_xlsx::domain::data_container::DataContainer;
 use crate::parse_xlsx::domain::instance::Instance;
 use crate::write_xml::errors::WriteXMLError;
@@ -23,63 +25,114 @@ pub fn write_xml_example() {
 
     person.write(file).unwrap();
 }
-
-pub fn write_xml(data_container: &DataContainer, data_model: &DataModel, parse_info: &ParseInformation) -> Result<(), WriteXMLError> {
-    let path = new_path(&data_container.res_name);
-    let file = File::create(path.as_str())?;
+pub fn write_xml(data_containers: &Vec<DataContainer>, data_model: &DataModel) -> Result<(), WriteXMLError> {
     let mut knora = XMLElement::new("knora");
     add_default_knora_attributes(&mut knora);
     add_shortcode_default_ontology_attributes(&mut knora, &data_model.shortcode.to_owned(), &data_model.shortname);
-    let restype = ":".to_string() + data_container.res_name.as_str();
-    for resource in data_container.resources.iter() {
-        let mut xml_res = XMLElement::new("resource");
-        xml_res.add_attribute("label", &resource.label);
-        xml_res.add_attribute("id", &resource.id);
-        xml_res.add_attribute("restype", &restype);
 
-        if resource.res_permissions.is_some() {
-            xml_res.add_attribute("permissions", &resource.res_permissions.unwrap());
-        }
-        if resource.bitstream.is_some() {
-            xml_res.add_child(bitstream_child(&resource));
-        }
-        for dasch_value_field in resource.dasch_value_fields.iter() {
-            let property_object = &data_model.properties.iter().find(|property|property.name.eq(&dasch_value_field.propname)).unwrap();
-            let (xml_object, sub_xml_object) = xml_object_sub_object(&property_object.object);
-            let mut prop_container = XMLElement::new(xml_object);
-            let propname = ":".to_string() + dasch_value_field.propname.as_str();
-            prop_container.add_attribute("name", propname);
-            if property_object.object.eq(&ValueObject::ListValue) {
-                prop_container.add_attribute("list", property_object.h_list.as_ref().unwrap());
-            }
-            for dasch_value in dasch_value_field.values.iter() {
-                let mut prop_value = XMLElement::new(&sub_xml_object);
-                /*
+    let mut hash_to_id_authors: HashMap<String, (String, Vec<String>)> = HashMap::new();
+    let new_path = new_path(&format!("data_{}_{}",data_model.shortcode, data_model.shortname));
+    let file = File::create(new_path.as_str())?;
+    for data_container in data_containers {
+        let restype = ":".to_string() + data_container.res_name.as_str();
+        add_resources(&data_container.resources, &mut hash_to_id_authors, restype, &data_model, &mut knora);
+        // todo allow here returning single files
+        // let path = new_path(&data_container.res_name);
+    }
+    finish_knora_and_write(&mut knora, hash_to_id_authors, file)?;
+    println!("wrote-file {:?}", new_path);
+    Ok(())
+}
 
-                if parse_info.set_permissions {
-                    // is necessary to avoid an xml file with unnecessary permissions
-                }
-                 */
-                if dasch_value.permission.is_some() {
-                    prop_value.add_attribute("permissions", dasch_value.permission.unwrap());
-                }
+fn finish_knora_and_write(mut knora: &mut XMLElement, hash_to_id_authors: HashMap<String, (String, Vec<String>)>, file: File) -> Result<(), WriteXMLError> {
+    add_authorship_element(&mut knora, hash_to_id_authors);
+    knora.write(file)?;
+    Ok(())
+}
 
-                if dasch_value.comment.is_some() {
-                    prop_value.add_attribute("comment", dasch_value.comment.as_ref().unwrap(), );
-                }
-                if dasch_value.encoding.is_some() {
-                    prop_value.add_attribute("encoding", dasch_value.encoding.as_ref().unwrap());
-                }
-                prop_value.add_text(&dasch_value.value);
-                prop_container.add_child(prop_value);
-            }
-            xml_res.add_child(prop_container);
-        }
+fn add_resources(resources: &Vec<Instance>, hash_to_id_authors: &mut HashMap<String, (String, Vec<String>)>, restype: String, data_model: &&DataModel, knora: &mut XMLElement) {
+    for resource in resources {
+        let mut xml_res = xml_resource(&resource, hash_to_id_authors, &restype);
+        add_values(&resource.dasch_value_fields, &mut xml_res, data_model);
         knora.add_child(xml_res);
     }
-    knora.write(file)?;
-    println!("wrote-file {:?}", path);
-    Ok(())
+}
+
+fn add_values(dasch_value_fields: &Vec<DaschValueField>, mut xml_res: &mut XMLElement, data_model: &&DataModel) {
+    for dasch_value_field in dasch_value_fields.iter() {
+        let property_object = &data_model.properties.iter().find(|property| property.name.eq(&dasch_value_field.propname)).unwrap();
+        let (xml_object, sub_xml_object) = xml_object_sub_object(&property_object.object);
+        let mut prop_container = XMLElement::new(xml_object);
+        let propname = ":".to_string() + dasch_value_field.propname.as_str();
+        prop_container.add_attribute("name", propname);
+        if property_object.object.eq(&ValueObject::ListValue) {
+            prop_container.add_attribute("list", property_object.h_list.as_ref().unwrap());
+        }
+        for dasch_value in dasch_value_field.values.iter() {
+            let prop_value = value(dasch_value, &sub_xml_object);
+            prop_container.add_child(prop_value);
+        }
+        xml_res.add_child(prop_container);
+    }
+}
+
+fn value(dasch_value: &DaschValue, sub_xml_object: &String) -> XMLElement {
+    let mut prop_value = XMLElement::new(&sub_xml_object);
+    /*
+
+    if parse_info.set_permissions {
+        // is necessary to avoid an xml file with unnecessary permissions
+    }
+     */
+    if dasch_value.permission.is_some() {
+        prop_value.add_attribute("permissions", dasch_value.permission.unwrap());
+    }
+    if dasch_value.comment.is_some() {
+        prop_value.add_attribute("comment", dasch_value.comment.as_ref().unwrap(), );
+    }
+    if dasch_value.encoding.is_some() {
+        prop_value.add_attribute("encoding", dasch_value.encoding.as_ref().unwrap());
+    }
+    prop_value.add_text(&dasch_value.value);
+    prop_value
+}
+
+fn xml_resource(resource: &Instance, mut hash_to_id_authors: &mut HashMap<String, (String, Vec<String>)>, restype: &String) -> XMLElement {
+    let mut xml_res = XMLElement::new("resource");
+    xml_res.add_attribute("label", &resource.label);
+    xml_res.add_attribute("id", &resource.id);
+    xml_res.add_attribute("restype", &restype);
+
+    if resource.res_permissions.is_some() {
+        xml_res.add_attribute("permissions", &resource.res_permissions.unwrap());
+    }
+    if resource.bitstream.is_some() {
+        xml_res.add_child(bitstream_child(
+            &resource,
+            &mut hash_to_id_authors,
+        ));
+    }
+    xml_res
+}
+
+fn add_authorship_element(knora: &mut XMLElement, hash_to_id_authorship_group: HashMap<String, (String, Vec<String>)>) {
+    /*
+    <authorship id="authorship_1">
+        <author>Lukas Rosenthaler</author>
+        </authorship>
+   */
+    if hash_to_id_authorship_group.is_empty() {
+        return;
+    }
+    for (id, authorship_group) in hash_to_id_authorship_group.values() {
+        let authorship = XMLElement::new("authorship");
+        knora.add_attribute("id", id);
+        for member in authorship_group {
+            let mut author = XMLElement::new("author");
+            author.add_text(member);
+            knora.add_child(author);
+        }
+    }
 }
 
 fn new_path(res_name: &String) -> String {
@@ -138,12 +191,24 @@ fn add_shortcode_default_ontology_attributes(knora: &mut XMLElement, shortcode: 
 }
 
 
-
-fn bitstream_child(resource: &Instance) -> XMLElement {
+fn bitstream_child(resource: &Instance, hash_to_id_authors: &mut HashMap<String, (String, Vec<String>)>) -> XMLElement {
+    // hash vector entries
+    let mut values =  resource.authorship.as_ref().unwrap().to_vec();
+    // sort so that we don't have any duplicates, like Vec<a,b,c> and Vec<b, a, c> etc.
+    values.sort();
+    let hash_id = resource.authorship.as_ref().unwrap().join("");
+    let id = match hash_to_id_authors.get(&hash_id) {
+        Some((id, values)) => {id.to_owned()}
+        None => {
+            let id = format!("authorship_{}", hash_to_id_authors.len() + 1);
+            hash_to_id_authors.insert(hash_id, (id.to_owned(), values.to_vec()));
+            id
+        }
+    };
     let mut bitstream = XMLElement::new("bitstream");
     bitstream.add_attribute("copyright-holder", &resource.copyright_holder.as_ref().unwrap());
-    bitstream.add_attribute("authorship-id", &resource.authorship.as_ref().unwrap().join(","));
-    bitstream.add_attribute("license", &resource.license.as_ref().unwrap());
+    bitstream.add_attribute("authorship-id", id);
+    bitstream.add_attribute("license", &resource.license.as_ref().unwrap().rdfh_str());
     bitstream.add_text(resource.bitstream.as_ref().unwrap());
     if resource.bitstream_permissions.is_some() {
         bitstream.add_attribute("permissions",resource.bitstream_permissions.as_ref().unwrap())

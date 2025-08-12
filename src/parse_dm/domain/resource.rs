@@ -4,7 +4,7 @@ use crate::parse_dm::domain::res_property::{ResProperty, ResPropertyWrapper};
 use crate::parse_dm::domain::super_field::{SuperField, SuperFieldWrapper};
 use crate::parse_dm::errors::DataModelError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct DMResource {
     pub(crate) name: String,
     labels: Vec<Label>,

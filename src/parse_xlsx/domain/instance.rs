@@ -7,6 +7,7 @@ use crate::parse_hcl::domain::resource_supplement::{ResourceSupplType, ResourceS
 use crate::parse_xlsx::domain::dasch_value_field::{DaschValueField, FieldsWrapper};
 use crate::parse_xlsx::domain::data_row::DataRow;
 use crate::parse_xlsx::domain::header::Header;
+use crate::parse_xlsx::domain::license::License;
 use crate::parse_xlsx::domain::permissions::{Permissions};
 use crate::parse_xlsx::domain::resource_data::{to_resource_data, ResourceSupplData};
 use crate::parse_xlsx::errors::ExcelDataError;
@@ -22,7 +23,7 @@ pub struct Instance {
     pub dasch_value_fields:  Vec<DaschValueField>,
     pub authorship: Option<Vec<String>>,
     pub copyright_holder: Option<String>,
-    pub license: Option<String>
+    pub license: Option<License>
 }
 
 impl Instance {
