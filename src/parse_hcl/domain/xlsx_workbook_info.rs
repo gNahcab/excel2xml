@@ -56,13 +56,9 @@ impl TransientXLSXWorkbook {
         None
     }
     fn no_duplicate_output_names(&self) -> Result<(), HCLDataError> {
-        // check that all output-names in assignments, supplements and transform don't have any duplicates
+        // check that all output-names in assignments  transform don't have any duplicates
         let mut output_names = vec![];
         for (_, sheet_info) in self.sheet_infos.iter() {
-            if sheet_info.supplements.is_some() {
-                sheet_info.supplements.as_ref().unwrap().header_to_prop_suppl.iter().for_each(|(header,_)|output_names.push(header));
-                sheet_info.supplements.as_ref().unwrap().header_to_res_suppl.iter().for_each(|(header,_)|output_names.push(header));
-            }
             sheet_info.assignments.propname_to_header.iter().for_each(|(propname, _)|output_names.push(propname));
             if sheet_info.transformations.is_some() {
                 let transformations = sheet_info.transformations.as_ref().unwrap();
