@@ -31,7 +31,7 @@ pub fn perform_identify(key_value_map: HashMap<String, String>, base_col: &Vec<S
             .map(|key|match key_value_map.get(key.trim()) {
         None => {
             if !key.starts_with("http") && !key.trim().is_empty(){
-                println!("NONE: {}", key);
+                println!("NONE KEY in identify: {}", key);
             }
             key.to_string()}
         Some(replace) => {

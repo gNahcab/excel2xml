@@ -2,33 +2,45 @@ use std::collections::HashMap;
 use crate::create_hcl::errors::CreateHCLError;
 
 
+#[derive(Debug, Clone)]
 pub struct SupplementHCL {
-    supplement_type: SupplementType,
-    attached_header: AttachedHeader
+    pub supplement_type: SupplementType,
+    pub attached_to_header: AttachedToHeader
 }
 
 impl SupplementHCL {
-    pub(crate) fn new(supplement_type: SupplementType, attached_header: AttachedHeader) -> Self {
-        SupplementHCL{ supplement_type, attached_header }
+    pub(crate) fn new(supplement_type: SupplementType, attached_to_header: AttachedToHeader) -> Self {
+        SupplementHCL{ supplement_type, attached_to_header }
     }
 }
 
-pub fn find_attached_type(curr_pos: &usize, headers: &Vec<String>, pos_header_to_propname: &HashMap<usize, String>, pos_header_to_id_label: &HashMap<usize, String>, pos_header_to_hcl_supplement: &HashMap<usize, SupplementHCL>) -> AttachedHeader {
-    for pos in curr_pos.to_owned()..0usize {
+pub fn find_attached_type(curr_pos: &usize, headers: &Vec<String>, pos_header_to_propname: &HashMap<usize, String>, pos_header_to_id_label: &HashMap<usize, String>, pos_header_to_hcl_supplement: &HashMap<usize, SupplementHCL>) -> AttachedToHeader {
+    for pos in (0usize..curr_pos.to_owned()).rev() {
         if pos_header_to_propname.contains_key(&pos) {
-            return AttachedHeader::Propname(headers.get(pos).unwrap().to_string());
+            return AttachedToHeader::Propname(headers.get(pos).unwrap().to_string());
         } else if pos_header_to_id_label.contains_key(&pos) {
-            return AttachedHeader::Resource;
+            return AttachedToHeader::Resource;
+        }
+        match pos_header_to_hcl_supplement.get(&pos) {
+            None => {
+                // continue
+            }
+            Some(hcl_suppl) => {
+                // attached to whatever this hcl-suppl is attached
+                return hcl_suppl.attached_to_header.to_owned();
+            }
         }
     }
-    todo!()
-
+    // back at 0 means -> attached to Resource
+    AttachedToHeader::Resource
 }
-pub enum AttachedHeader {
+
+#[derive(Debug, Clone)]
+pub enum AttachedToHeader {
     Resource,
     Propname(String)
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SupplementType {
     Authorship,
     License,

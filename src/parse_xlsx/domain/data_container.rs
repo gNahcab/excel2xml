@@ -46,7 +46,8 @@ impl DataContainerWrapper {
         let (row_nr_to_propname, row_nr_to_prop_suppl, row_nr_to_res_suppl, row_nr_to_id_label) = change_col_nr_to_row_nr(col_nr_to_propname, col_nr_to_prop_suppl, col_nr_to_res_suppl, col_nr_to_row_nr, col_nr_to_id_label);
         let data_header = DataHeaderWrapper(self.0.header_to_col_nr.to_owned()).to_data_header(&resource, &row_nr_to_propname, &row_nr_to_prop_suppl, &row_nr_to_res_suppl, &row_nr_to_id_label)?;
         for row in rows.iter() {
-            data_instances.push(InstanceWrapper(row.to_owned()).to_instance(&data_model, &parse_info.separator, &row_nr_to_propname, &row_nr_to_prop_suppl, &row_nr_to_res_suppl, &row_nr_to_id_label, &resource.super_field, parse_info.set_permissions)?);
+            let instance = InstanceWrapper(row.to_owned()).to_instance(&data_model, &parse_info.separator, &row_nr_to_propname, &row_nr_to_prop_suppl, &row_nr_to_res_suppl, &row_nr_to_id_label, &resource.super_field, parse_info.set_permissions)?;
+            data_instances.push(instance);
         }
         Ok(DataContainer::new(data_header, data_instances, self.0.res_name.to_owned()))
     }

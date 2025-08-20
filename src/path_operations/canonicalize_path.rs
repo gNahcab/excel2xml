@@ -6,7 +6,7 @@ pub fn canonicalize_path(path: &PathBuf) -> Result<PathBuf, PathOpError> {
     match fs::canonicalize(&path) {
         Ok(full_path) => { Ok(full_path) }
         Err(err) => {
-             Err(PathOpError::IO(err))
+             Err(PathOpError::IOError(err))
         }
     }
 }

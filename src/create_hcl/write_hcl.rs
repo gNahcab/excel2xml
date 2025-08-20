@@ -1,11 +1,16 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
+use std::fs::File;
 use std::path::PathBuf;
+use hcl::{Block, BlockBuilder, Identifier};
+use hcl::edit::structure::Attribute;
 use regex::Regex;
 use rust_fuzzy_search::fuzzy_compare;
 use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::resource::DMResource;
 use crate::create_hcl::errors::CreateHCLError;
 use crate::create_hcl::hcl_resource::{HCLResource, WrapperHCLResource};
+use crate::create_hcl::supplement_hcl::{AttachedToHeader, SupplementHCL};
 
 pub fn write_hcl(file_name_table_name_table_headers: Vec<(String, String, Vec<String>)>, datamodel: DataModel, dm_path: &PathBuf) -> Result<(), CreateHCLError> {
     let resources = hcl_resources(file_name_table_name_table_headers, &datamodel, dm_path)?;
@@ -19,10 +24,93 @@ pub enum NameType {
 }
 
 fn write_resources_to_hcl(hcl_resources: Vec<HCLResource>) -> Result<(), CreateHCLError>{
+   let mut buffer = File::create("foo.hcl")?;
+    add_attribute(&mut buffer, "resources_folder_path", "TO_ADD")?;
+    add_attribute(&mut buffer, "shortcode", "TO_ADD")?;
+    add_attribute(&mut buffer, "shortname", "TO_ADD")?;
+    add_attribute(&mut buffer, "set_permissions", "TO_ADD")?;
+    add_attribute(&mut buffer, "datamodel_path", "TO_ADD")?;
+    add_attribute(&mut buffer, "separator", "TO_ADD")?;
+
     for hcl_res in hcl_resources {
-        println!("{:?}", hcl_res);
+        let attribute = Attribute::new(Identifier::new("resource")?, hcl_res.resource_name.to_owned());
+        let block_builder = BlockBuilder::new("xlsx")
+            .add_block(
+                sheet_block(&hcl_res, attribute)?
+            )
+            .add_label(hcl_res.xlsx_path);
+        let block = block_builder.build();
+        hcl::format::to_writer(&buffer, &block)?;
     }
-    todo!()
+    Ok(())
+}
+
+fn add_attribute(mut buffer: &mut File, key: &str, value: &str) -> Result<(), CreateHCLError> {
+    let attribute = hcl::Attribute::new(Identifier::new(key)?, value);
+    hcl::format::to_writer(&mut buffer, &attribute)?;
+    Ok(())
+}
+
+fn sheet_block(hcl_res: &HCLResource, attribute: Attribute) -> Result<Block, CreateHCLError> {
+    let block_builder = BlockBuilder::new("sheet")
+        .add_label(format!("{}", &hcl_res.sheet_nr))
+        .add_attribute(attribute)
+        .add_blocks(assignments_block(&hcl_res.header_assignments, &hcl_res.header_id_label))
+        .add_blocks(supplements_block(&hcl_res.header_supplements));
+    Ok(block_builder.build())
+}
+
+fn supplements_block(header_supplements: &HashMap<String, SupplementHCL>) -> Result<Block, CreateHCLError> {
+    let block_builder = BlockBuilder::new("supplements").
+        add_blocks(
+            supplements(header_supplements)?
+        );
+    Ok(block_builder.build())
+}
+
+fn supplements (header_supplements: &HashMap<String, SupplementHCL>) -> Result<Vec<Block>, CreateHCLError> {
+    let mut block_supplements = vec![];
+    let mut block_name_to_attributes: HashMap<String, Vec<Attribute>> = HashMap::new();
+    for (header, supplement) in header_supplements {
+        let supplement_id = Identifier::new(
+            format!("{:?}", supplement.supplement_type).to_lowercase())?;
+        let identifier = match &supplement.attached_to_header {
+            AttachedToHeader::Resource => {
+                "resource".to_string()
+            }
+            AttachedToHeader::Propname(propname) => {propname.to_string()}
+        };
+        let attribute = Attribute::new(supplement_id,header.to_owned());
+        if !block_name_to_attributes.contains_key(&identifier) {
+            block_name_to_attributes.insert(identifier.to_string(), vec![]);
+        }
+        block_name_to_attributes.get_mut(&identifier).unwrap().push(attribute);
+    }
+    for (identifier, attributes) in block_name_to_attributes.iter() {
+        let resource_block = BlockBuilder::new(identifier.as_str()).add_attributes(attributes.to_vec()).build();
+        block_supplements.push(resource_block);
+    }
+    Ok(block_supplements)
+}
+
+fn assignments_block(header_assignments: &HashMap<String, String>, header_id_label: &HashMap<String, String>) -> Result<Block, CreateHCLError>{
+    let block_builder = BlockBuilder::new("assignments").
+        add_attributes(
+            assignments(header_assignments, header_id_label)?
+        );
+    Ok(block_builder.build())
+}
+fn assignments(assignments: &HashMap<String, String>, header_id_label: &HashMap<String, String>) -> Result<Vec<Attribute>, CreateHCLError> {
+    let mut attribute_assignments = vec![];
+    for (header, assign) in assignments {
+        let attribute = Attribute::new(Identifier::new(assign)?, header.to_owned());
+        attribute_assignments.push(attribute);
+    }
+    for (header, id_label) in header_id_label {
+        let attribute = Attribute::new(Identifier::new(id_label)?, header.to_owned());
+        attribute_assignments.push(attribute);
+    }
+    Ok(attribute_assignments)
 }
 
 fn clean(value: &String) -> String {
@@ -43,10 +131,9 @@ fn remove_ending(file_name: &&String) -> String {
 }
 fn hcl_resources(file_name_table_name_table_headers: Vec<(String, String, Vec<String>)>, datamodel: &DataModel, dm_path: &PathBuf) -> Result<Vec<HCLResource>, CreateHCLError>{
     let dm_res_with_infos = map_dm_res_to_infos(&file_name_table_name_table_headers, &datamodel);
-
     let mut hcl_resources = vec![];
     for (dm_res, name_type, file_name, headers) in dm_res_with_infos {
-        let mut table_name = match name_type {
+        let table_name = match name_type {
             NameType::FileName => {
                 None
             }

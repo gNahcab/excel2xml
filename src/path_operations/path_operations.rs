@@ -1,4 +1,3 @@
-use std::ffi::OsStr;
 use std::path::PathBuf;
 use crate::parse_hcl::domain::command_path::CommandOrPath;
 use crate::path_operations::canonicalize_path::{canonicalize_path, find_datamodel};
@@ -24,7 +23,7 @@ pub fn filter_paths_based_on_extension(dir: &PathBuf, extension_to_check: &str) 
     let dir = match dir.read_dir() {
         Ok(dir) => {dir}
         Err(err) => {
-            return Err(PathOpError::IO(err));
+            return Err(PathOpError::IOError(err));
         }
     };
 
@@ -44,7 +43,7 @@ pub fn filter_paths_based_on_extension(dir: &PathBuf, extension_to_check: &str) 
                 }
             }
             Err(err) => {
-                PathOpError::IO(err);
+                PathOpError::IOError(err);
             }
         }
     }
