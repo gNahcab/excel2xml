@@ -1,4 +1,5 @@
 use simple_xml_builder::XMLElement;
+use crate::write_xml::write_xml::standard_escape;
 
 fn prop_default() -> XMLElement {
     /*
@@ -11,7 +12,7 @@ fn prop_default() -> XMLElement {
     */
     let mut prop_default = XMLElement::new("permissions");
     let id = "prop-default";
-    prop_default.add_attribute("id", id);
+    prop_default.add_attribute("id", id,  &crate::write_xml::write_xml::standard_escape);
     let allow_u = allow("UnknownUser", "V");
     prop_default.add_child(allow_u);
     let allow_k = allow("KnownUser", "V");
@@ -31,7 +32,7 @@ fn prop_restricted() -> XMLElement {
      */
     let mut prop_restricted = XMLElement::new("permissions");
     let id = "prop-restricted";
-    prop_restricted.add_attribute("id", id);
+    prop_restricted.add_attribute("id", id, &standard_escape);
     let allow_cr = allow("Creator", "M");
     prop_restricted.add_child(allow_cr);
     let allow_pa = allow("ProjectAdmin", "D");
@@ -47,7 +48,7 @@ fn res_restricted() -> XMLElement {
      */
     let mut res_restricted = XMLElement::new("permissions");
     let id = "res-restricted";
-    res_restricted.add_attribute("id", id);
+    res_restricted.add_attribute("id", id, &standard_escape);
     let allow_cr = allow("Creator", "M");
     res_restricted.add_child(allow_cr);
     let allow_pa = allow("ProjectAdmin", "D");
@@ -65,7 +66,7 @@ fn res_default() -> XMLElement {
      */
     let mut res_default = XMLElement::new("permissions");
     let id = "res-default";
-    res_default.add_attribute("id", id);
+    res_default.add_attribute("id", id, &standard_escape);
     let allow_u = allow("UnknownUser", "V");
     res_default.add_child(allow_u);
     let allow_k = allow("KnownUser", "V");
@@ -79,8 +80,8 @@ fn res_default() -> XMLElement {
 
 fn allow(group: &str, value: &str) -> XMLElement {
     let mut group_allow = XMLElement::new("allow");
-    group_allow.add_attribute("group", group);
-    group_allow.add_text(value);
+    group_allow.add_attribute("group", group, &standard_escape);
+    group_allow.add_text(value, &standard_escape);
     group_allow
 }
 pub fn add_default_permissions(knora: &mut XMLElement) {

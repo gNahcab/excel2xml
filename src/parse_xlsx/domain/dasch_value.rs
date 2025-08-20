@@ -1,7 +1,6 @@
 use std::cmp::PartialEq;
-use clap::builder::Str;
+use std::fmt::Debug;
 use crate::parse_dm::domain::gui_element::GUIElement;
-use crate::parse_dm::domain::object::ValueObject;
 use crate::parse_xlsx::domain::dasch_value_field::TransientSupplementValueField;
 use crate::parse_xlsx::domain::encoding::Encoding;
 use crate::parse_xlsx::domain::permissions::Permissions;
@@ -41,7 +40,7 @@ impl PartialEq for Encoding {
 impl TransientDaschValue {
     pub(crate) fn new(value: String) -> Self {
         TransientDaschValue {
-            value,
+            value: value,
             permission: None,
             encoding: None,
             comment: None,

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-simple-xml-builder = "1.1.0"
+simple-xml-builder = { git = "https://github.com/gNahcab/simple-xml-builder" }
 serde_json = "1.0.127"
 calamine = { version = "0.26.1", features = ["dates"] } # excel
 hcl-rs = "0.18.0" # HCL parser

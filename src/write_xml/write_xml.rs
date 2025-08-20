@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::fs::File;
 use simple_xml_builder::XMLElement;
 use crate::parse_dm::domain::data_model::DataModel;
+use crate::parse_dm::domain::gui_element::GUIElement;
 use crate::parse_dm::domain::object::ValueObject;
+use crate::parse_dm::domain::property::Property;
 use crate::parse_xlsx::domain::dasch_value::DaschValue;
 use crate::parse_xlsx::domain::dasch_value_field::DaschValueField;
 use crate::parse_xlsx::domain::data_container::DataContainer;
@@ -10,15 +12,18 @@ use crate::parse_xlsx::domain::instance::Instance;
 use crate::write_xml::errors::WriteXMLError;
 
 pub fn write_xml_example() {
+    fn escape_nothing(value: &str) -> String {
+        value.replace("", "")
+    }
     let file = File::create("sample.xml").unwrap();
 
     let mut person = XMLElement::new("person");
-    person.add_attribute("id", "232");
+    person.add_attribute("id", "232", &escape_nothing);
     let mut name = XMLElement::new("name");
-    name.add_text("Joe Schmoe");
+    name.add_text("Joe Schmoe", &escape_nothing);
     person.add_child(name);
     let mut age = XMLElement::new("age");
-    age.add_text("24");
+    age.add_text("24", &escape_nothing);
     person.add_child(age);
     let hobbies = XMLElement::new("hobbies");
     person.add_child(hobbies);
@@ -70,10 +75,6 @@ fn create_authorship_hash_map(data_containers: &Vec<DataContainer>) -> HashMap<S
     hash_to_id_authors
 }
 
-fn finish_knora_and_write(mut knora: &mut XMLElement, hash_to_id_authors: HashMap<String, (String, Vec<String>)>, file: File) -> Result<(), WriteXMLError> {
-    Ok(())
-}
-
 fn add_resources(resources: &Vec<Instance>, hash_to_id_authors: &HashMap<String, (String, Vec<String>)>, restype: String, data_model: &&DataModel, knora: &mut XMLElement) {
     for resource in resources {
         let mut xml_res = xml_resource(&resource, hash_to_id_authors, &restype);
@@ -88,47 +89,84 @@ fn add_values(dasch_value_fields: &Vec<DaschValueField>, mut xml_res: &mut XMLEl
         let (xml_object, sub_xml_object) = xml_object_sub_object(&property_object.object);
         let mut prop_container = XMLElement::new(xml_object);
         let propname = ":".to_string() + dasch_value_field.propname.as_str();
-        prop_container.add_attribute("name", propname);
+        prop_container.add_attribute("name", propname, &standard_escape);
         if property_object.object.eq(&ValueObject::ListValue) {
-            prop_container.add_attribute("list", property_object.h_list.as_ref().unwrap());
+            prop_container.add_attribute("list", property_object.h_list.as_ref().unwrap(), &standard_escape);
         }
         for dasch_value in dasch_value_field.values.iter() {
-            let prop_value = value(dasch_value, &sub_xml_object);
+            let prop_value = value(dasch_value, &sub_xml_object, property_object);
             prop_container.add_child(prop_value);
         }
         xml_res.add_child(prop_container);
     }
 }
 
-fn value(dasch_value: &DaschValue, sub_xml_object: &String) -> XMLElement {
+fn value(dasch_value: &DaschValue, sub_xml_object: &String, property_object: &&Property) -> XMLElement {
     let mut prop_value = XMLElement::new(&sub_xml_object);
     /*
 
     if parse_info.set_permissions {
-        // is necessary to avoid an xml file with unnecessary permissions
+        // is necessary to avoid a xml file with unnecessary permissions
     }
      */
     if dasch_value.permission.is_some() {
-        prop_value.add_attribute("permissions", dasch_value.permission.unwrap());
+        prop_value.add_attribute("permissions", dasch_value.permission.unwrap(), &standard_escape);
     }
     if dasch_value.comment.is_some() {
-        prop_value.add_attribute("comment", dasch_value.comment.as_ref().unwrap(), );
+        prop_value.add_attribute("comment", dasch_value.comment.as_ref().unwrap(), &standard_escape);
     }
     if dasch_value.encoding.is_some() {
-        prop_value.add_attribute("encoding", dasch_value.encoding.as_ref().unwrap());
+        prop_value.add_attribute("encoding", dasch_value.encoding.as_ref().unwrap(), &standard_escape);
     }
-    prop_value.add_text(&dasch_value.value);
+    let escape_func: Box<fn(&str) -> String> = match property_object.gui_element {
+        GUIElement::RICHTEXT => {
+            Box::new(|input|
+                input
+                    .replace("<br/>","£br£")
+                    .replace('&', "&amp;")
+                    .replace('"', "&quot;")
+                    .replace('\'', "&apos;")
+                    .replace('<', "&lt;")
+                    .replace('>', "&gt;")
+                    .replace("£br£","<br/>")
+            )
+
+        }
+        GUIElement::TEXTAREA => {
+            Box::new(|input|
+                input
+                    .replace("<£CP>","&#10;")
+                    .replace('&', "&amp;")
+                    .replace('"', "&quot;")
+                    .replace('\'', "&apos;")
+                    .replace('<', "&lt;")
+                    .replace('>', "&gt;")
+            )
+        }
+        _ => {
+            Box::new(standard_escape)
+        }
+    };
+    prop_value.add_text(&dasch_value.value, &escape_func);
     prop_value
 }
 
+pub(crate) fn standard_escape(input: &str) -> String {
+        input
+            .replace('&', "&amp;")
+            .replace('"', "&quot;")
+            .replace('\'', "&apos;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+}
 fn xml_resource(resource: &Instance, hash_to_id_authors:  &HashMap<String, (String, Vec<String>)>, restype: &String) -> XMLElement {
     let mut xml_res = XMLElement::new("resource");
-    xml_res.add_attribute("label", &resource.label);
-    xml_res.add_attribute("id", &resource.id);
-    xml_res.add_attribute("restype", &restype);
+    xml_res.add_attribute("label", &resource.label, &standard_escape);
+    xml_res.add_attribute("id", &resource.id, &standard_escape);
+    xml_res.add_attribute("restype", &restype,  &standard_escape);
 
     if resource.res_permissions.is_some() {
-        xml_res.add_attribute("permissions", &resource.res_permissions.unwrap());
+        xml_res.add_attribute("permissions", &resource.res_permissions.unwrap(), &standard_escape);
     }
     if resource.bitstream.is_some() {
         xml_res.add_child(bitstream_child(
@@ -149,10 +187,10 @@ fn add_authorship_element(knora: &mut XMLElement, hash_to_id_authorship_group: &
     }
     for (id, authorship_group) in hash_to_id_authorship_group.values() {
         let mut authorship = XMLElement::new("authorship");
-        authorship.add_attribute("id", id);
+        authorship.add_attribute("id", id, &standard_escape);
         for member in authorship_group {
             let mut author = XMLElement::new("author");
-            author.add_text(member);
+            author.add_text(member, &standard_escape);
             authorship.add_child(author);
         }
         knora.add_child(authorship);
@@ -204,14 +242,14 @@ fn xml_object_sub_object(value_object: &ValueObject) -> (String, String) {
     }
 }
 fn add_default_knora_attributes(knora: &mut XMLElement) {
-    knora.add_attribute("xmlns", "https://dasch.swiss/schema");
-    knora.add_attribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance" );
-    knora.add_attribute("xsi:schemaLocation", "https://dasch.swiss/schema https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/src/dsp_tools/resources/schema/data.xsd");
+    knora.add_attribute("xmlns", "https://dasch.swiss/schema", &standard_escape);
+    knora.add_attribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance" , &standard_escape);
+    knora.add_attribute("xsi:schemaLocation", "https://dasch.swiss/schema https://raw.githubusercontent.com/dasch-swiss/dsp-tools/main/src/dsp_tools/resources/schema/data.xsd", &standard_escape);
 }
 
 fn add_shortcode_default_ontology_attributes(knora: &mut XMLElement, shortcode: &String, default_ontology: &String) {
-    knora.add_attribute("shortcode", shortcode);
-    knora.add_attribute("default-ontology", default_ontology);
+    knora.add_attribute("shortcode", shortcode,  &standard_escape);
+    knora.add_attribute("default-ontology", default_ontology,  &standard_escape);
 }
 
 
@@ -223,12 +261,12 @@ fn bitstream_child(resource: &Instance, hash_to_id_authors: &HashMap<String, (St
     let hash_id = resource.authorship.as_ref().unwrap().join("");
     let (id, _) =  hash_to_id_authors.get(&hash_id).unwrap();
     let mut bitstream = XMLElement::new("bitstream");
-    bitstream.add_attribute("copyright-holder", &resource.copyright_holder.as_ref().unwrap());
-    bitstream.add_attribute("authorship-id", id);
-    bitstream.add_attribute("license", &resource.license.as_ref().unwrap().rdfh_str());
-    bitstream.add_text(resource.bitstream.as_ref().unwrap());
+    bitstream.add_attribute("copyright-holder", &resource.copyright_holder.as_ref().unwrap(),  &standard_escape);
+    bitstream.add_attribute("authorship-id", id,  &standard_escape);
+    bitstream.add_attribute("license", &resource.license.as_ref().unwrap().rdfh_str(),  &standard_escape);
+    bitstream.add_text(resource.bitstream.as_ref().unwrap(),  &standard_escape);
     if resource.bitstream_permissions.is_some() {
-        bitstream.add_attribute("permissions",resource.bitstream_permissions.as_ref().unwrap())
+        bitstream.add_attribute("permissions",resource.bitstream_permissions.as_ref().unwrap(),  &standard_escape)
     }
     bitstream
 }

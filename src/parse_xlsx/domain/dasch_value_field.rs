@@ -169,6 +169,11 @@ impl DaschValueFieldWrapper {
                         // no xml-tags allowed if SimpleText or TextArea
                     }
                     GUIElement::TEXTAREA => {
+                        for value in self.0.iter() {
+                            if value.contains("\n") {
+                                return Err(ExcelDataError::ParsingError(format!("The following value '{}' of property '{:?}' contains newline but newline should be replaced by '&#10;'.", value, curr_prop)))
+                            }
+                        }
                         // no xml-tags allowed if SimpleText or TextArea
                     }
                     _ => {
