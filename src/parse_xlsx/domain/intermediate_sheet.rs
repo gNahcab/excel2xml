@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 use calamine::{Data, DataType, ExcelDateTime, Range};
+use crate::operations::clean_string;
 use crate::parse_xlsx::domain::data_col::{DataCol};
 use crate::parse_xlsx::errors::ExcelDataError;
 use crate::read_xlsx::sheet::Sheet;
@@ -28,7 +29,7 @@ impl IntermediateSheet {
 pub(crate) struct IntermediateSheetWrapper(pub(crate) Sheet);
 
 impl IntermediateSheetWrapper {
-    pub(crate) fn to_intermediate_sheet(&self) -> Result<IntermediateSheet, ExcelDataError> {
+    pub(crate) fn to_intermediate_sheet(&self, separator: &String) -> Result<IntermediateSheet, ExcelDataError> {
         let mut data_sheet: IntermediateSheet = IntermediateSheet::new(self.0.res_name.to_owned(), self.0.rel_path.to_owned(), self.0.sheet_info_nr);
         if self.0.table.is_empty() {
             return Err(ExcelDataError::InputError("table cannot be empty".to_string()));
@@ -47,17 +48,19 @@ impl IntermediateSheetWrapper {
         for (col_id, col) in cols.iter().enumerate() {
             let (head, sliced_col) = col.split_at(1);
             let head = clean_string(&head[0]);
-            let data_col: DataCol = DataCol::new(sliced_col.to_vec(), head);
+            let splitted_col:Vec<_> = sliced_col
+                .iter()
+                .map(|value|value
+                    .split(separator)
+                .map(|value|value.to_owned()
+                    ).collect::<Vec<_>>()).collect();
+            let data_col: DataCol = DataCol::new(splitted_col, head);
             data_sheet.add_col(col_id, data_col);
         }
         Ok(data_sheet)
     }
 }
 
-fn clean_string(value: &String) -> String {
-    // remove whitespace and \n (new line)
-    value.trim().replace("\n", "")
-}
 
 pub fn parse_data_to_string(value: &Data) -> Result<String, ExcelDataError> {
     // parse data to string; adjust this according to needs later
@@ -95,10 +98,10 @@ pub fn parse_data_to_string(value: &Data) -> Result<String, ExcelDataError> {
 }
 
 
-pub fn intermediate_sheets(sheets: Vec<Sheet>) -> Result<Vec<IntermediateSheet>, ExcelDataError> {
+pub fn intermediate_sheets(sheets: Vec<Sheet>, separator: &String) -> Result<Vec<IntermediateSheet>, ExcelDataError> {
     let mut data_sheets = vec![];
     for sheet in sheets.iter() {
-        data_sheets.push(IntermediateSheetWrapper(sheet.to_owned()).to_intermediate_sheet()?);
+        data_sheets.push(IntermediateSheetWrapper(sheet.to_owned()).to_intermediate_sheet(separator)?);
     }
 
     Ok(data_sheets)

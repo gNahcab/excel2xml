@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use hcl::{Block, BlockLabel, Expression};
+use hcl::{BlockLabel, Expression};
 use crate::parse_hcl::domain::assignments::{Assignments, AssignmentsWrapper};
 use crate::parse_hcl::domain::supplements::{Supplements, SupplementsWrapper};
 use crate::parse_hcl::errors::HCLDataError;

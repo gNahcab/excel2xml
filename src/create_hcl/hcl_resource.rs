@@ -18,6 +18,7 @@ pub struct HCLResource {
     pub header_supplements: HashMap<String, SupplementHCL>,
     pub xlsx_path: String,
     pub sheet_nr: usize,
+    pub transforms: Vec<String>
 }
 
 impl HCLResource {
@@ -31,6 +32,7 @@ impl HCLResource {
             header_supplements: transient.header_supplements,
             xlsx_path: transient.xlsx_path.unwrap(),
             sheet_nr: transient.sheet_nr.unwrap(),
+            transforms: vec![],
         }
     }
 }

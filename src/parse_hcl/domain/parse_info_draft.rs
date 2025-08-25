@@ -1,8 +1,6 @@
 use std::collections::{HashMap};
 use std::path::PathBuf;
 use hcl::{Body, Expression};
-use crate::parse_dm::domain::data_model::DataModel;
-use crate::parse_dm::domain::resource::DMResource;
 use crate::parse_hcl::domain::command::{ParseInfoCommandWrapper};
 use crate::parse_hcl::domain::command_path::CommandOrPath;
 use crate::parse_hcl::domain::supplements::Supplements;
@@ -11,7 +9,7 @@ use crate::parse_hcl::errors::HCLDataError;
 use crate::parse_hcl::transformations::Transformations;
 
 pub struct ParseInformationDraft {
-    pub shortcode: String,
+    //pub shortcode: String,
     pub rel_path_to_xlsx_workbooks:HashMap<String, XLSXWorbookInfo>,
     pub res_folder: PathBuf,
     pub separator: String,
@@ -25,7 +23,7 @@ pub struct ParseInformationDraft {
 impl ParseInformationDraft{
     fn new(transient_parse_information: TransientParseInformation) -> Self {
         ParseInformationDraft {
-            shortcode: transient_parse_information.shortcode.unwrap(),
+            //shortcode: transient_parse_information.shortcode.unwrap(),
             rel_path_to_xlsx_workbooks: transient_parse_information.rel_path_to_xlsx_wb_info,
             res_folder: transient_parse_information.res_folder.unwrap(),
             separator: transient_parse_information.separator.unwrap(),
@@ -45,6 +43,7 @@ impl TryFrom<hcl::Body> for ParseInformationDraft {
         let blocks: Vec<&hcl::Block> = body.blocks().collect();
         for attribute in attributes.iter() {
             match attribute.key.as_str() {
+                /*
                 "shortcode" => {
                     match attribute.expr.to_owned() {
                         Expression::String(shortcode) => {
@@ -57,12 +56,14 @@ impl TryFrom<hcl::Body> for ParseInformationDraft {
                                 }
                             }
                             transient_parse_info.add_shortcode(shortcode)?;
+
                         }
                         _ => {
                             return Err(HCLDataError::InputError(format!("parse-info-hcl: shortcode is not a Expression::Number: '{}'", attribute.expr)));
                         }
                     }
                 }
+                 */
                 "set_permissions" => {
                     match attribute.expr.to_owned() {
                         Expression::Bool(set_permissions) => {
@@ -211,8 +212,11 @@ impl TransientParseInformation {
 
     }
     pub(crate) fn complete(&self) -> Result<(), HCLDataError> {
+        /*
         if self.shortcode.is_none() {
             return Err(HCLDataError::InputError("'shortcode' not found.".to_string())) }
+
+         */
         if self.permissions_set.is_none() {
             return Err(HCLDataError::InputError("'permissions-set' not found. Must be set to true or false.".to_string())) }
         /*

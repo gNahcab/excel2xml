@@ -194,6 +194,8 @@ fn assign_headers(raw_headers: &DataRow, assignments: &HashMap<String, HeaderVal
         }
     }
     let mut data_row = DataRow::new();
+    todo!()
+    /*
     for (curr_pos, raw_header) in raw_headers.row.iter().enumerate() {
         if pos_number_to_new_string.get(&(curr_pos as u8)).is_some() {
             let value = pos_number_to_new_string.remove(&(curr_pos as u8)).unwrap();
@@ -209,6 +211,8 @@ fn assign_headers(raw_headers: &DataRow, assignments: &HashMap<String, HeaderVal
         }
     }
     Ok(data_row)
+
+     */
 }
 
 pub fn expanded_data_sheets(sheets: Vec<IntermediateSheet>, parse_info: &ParseInformation, data_model: &DataModel, res_name_iri: HashMap<String, HashMap<String, String>>, separator: &String) -> Result<Vec<ExpandedDataSheet>, HCLDataError> {

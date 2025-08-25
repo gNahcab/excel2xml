@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use csv::StringRecord;
 use crate::api::download_resources::metadata_download;
 use crate::api::error::APICallError;
@@ -39,7 +39,7 @@ pub fn write_hcl_default(folder_path: &PathBuf) {
     for path in xlsx_paths {
         file_name_table_name_table_headers.push(extract_file_name_table_name_header(&path).unwrap());
     }
-    write_hcl(file_name_table_name_table_headers, datamodel, dm_path).unwrap();
+    write_hcl(file_name_table_name_table_headers, datamodel, dm_path, folder_path).unwrap();
 }
 
 fn extract_file_name_table_name_header(path: &PathBuf)  -> Result<(String, String, Vec<String>), Excel2XmlError> {
@@ -53,7 +53,7 @@ fn extract_file_name_table_name_header(path: &PathBuf)  -> Result<(String, Strin
         let header_row: _ = table.rows().take(1).collect::<Vec<_>>()[0];
         let mut headers: Vec<String> = vec![];
         for header in header_row.iter() {
-            let header = parse_data_to_string(header)?;
+            let header = clean_string(&parse_data_to_string(header)?);
             headers.push(header);
         }
         Ok((file_name, table_name.to_owned(), headers))
@@ -61,8 +61,13 @@ fn extract_file_name_table_name_header(path: &PathBuf)  -> Result<(String, Strin
 pub fn excel2xml(hcl_path: &PathBuf) {
     // canonicalize paths
     let hcl_path = fs::canonicalize(hcl_path).expect("unable to find absolute-path of parse-info");
-    let parse_info: ParseInformation = parse_hcl_info(hcl_path).unwrap();
-    let res_name_iri = res_names_iris(&parse_info.res_name_to_updates.iter().map(|(res_name, update)|update).collect::<Vec<&Transformations>>(), &parse_info.shortcode).unwrap();
+    let hcl_folder = match hcl_path.parent() {
+        None => {
+            panic!("hcl-path '{:?}' doesn't have a parent!", hcl_path)
+        }
+        Some(parent) => {parent}
+    };
+    let parse_info: ParseInformation = parse_hcl_info(&hcl_path, &hcl_folder).unwrap();
 
     /*
     let folder_path = fs::canonicalize(folder_path).expect("unable to find absolute-path of folder-path");
@@ -73,15 +78,15 @@ pub fn excel2xml(hcl_path: &PathBuf) {
     // todo: data-models should be loaded from resources/data_models, not from path specified in hcl (download from server, if data-model is not there or replace if update is indicated)
 
     let file = read_from_json(&parse_info.dm_path).unwrap();
-    let data_model = file.try_into().unwrap();
-    parse_info.compare_parse_info_to_datamodel(&data_model).unwrap();
+    let data_model: DataModel = file.try_into().unwrap();
 
+    let res_name_iri = res_names_iris(&parse_info.res_name_to_updates.iter().map(|(res_name, update)|update).collect::<Vec<&Transformations>>(), &data_model.shortcode).unwrap();
     //&parse_info.compare_parse_info_to_datamodel(&data_model, special_propnames)?;
 
     // import sheets
     let sheets: Vec<Sheet> = sheets(&parse_info.res_folder, &parse_info).unwrap();
     // prepare
-    let intermediate_sheets: Vec<IntermediateSheet> = intermediate_sheets(sheets).unwrap();
+    let intermediate_sheets: Vec<IntermediateSheet> = intermediate_sheets(sheets, &parse_info.separator).unwrap();
     // edit
     let expanded_data_sheets:Vec<ExpandedDataSheet> = expanded_data_sheets(intermediate_sheets, &parse_info, &data_model, res_name_iri, &parse_info.separator).unwrap();
     let updated_data_sheets: Vec<UpdatedDataSheet> = updated_data_sheets(expanded_data_sheets, &parse_info.res_name_to_updates, &parse_info.separator).unwrap();
@@ -90,6 +95,10 @@ pub fn excel2xml(hcl_path: &PathBuf) {
     write_xml(&data_containers, &data_model).unwrap();
 }
 
+pub fn clean_string(value: &String) -> String {
+    // remove whitespace and \n (new line)
+    value.trim().replace("\n", "")
+}
 fn res_names_iris(transformations: &Vec<&Transformations>, shortcode: &String) -> Result<HashMap<String, HashMap<String, String>>, Excel2XmlError> {
     if !call_necessary(transformations) {
         return Ok(HashMap::new())
@@ -170,10 +179,10 @@ fn data_containers(data_sheet: &Vec<UpdatedDataSheet>, data_model: &DataModel, p
 }
 
 
-fn parse_hcl_info(hcl_path: PathBuf) -> Result<ParseInformation , Excel2XmlError> {
+fn parse_hcl_info(hcl_path: &PathBuf, curr_folder: &&Path) -> Result<ParseInformation , Excel2XmlError> {
     let hcl_body:hcl::Body = read_hcl_body(&hcl_path)?;
     let mut hcl_info_draft: ParseInformationDraft = hcl_body.try_into()?;
-    let (res_folder, dm_path) = canonicalize_paths(&hcl_info_draft.dm_path, &hcl_info_draft.res_folder, hcl_path)?;
+    let (res_folder, dm_path) = canonicalize_paths(&hcl_info_draft.dm_path, &hcl_info_draft.res_folder, curr_folder)?;
     let parse_info: ParseInformation = ParseInformation::new(hcl_info_draft, dm_path, res_folder);
     Ok(parse_info)
 }

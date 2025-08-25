@@ -2,18 +2,18 @@ use calamine::Data;
 #[derive(Clone, Debug)]
 pub struct DataCol {
     pub head: String,
-    pub col: Vec<String>
+    pub col: Vec<Vec<String>>
 }
 
 impl DataCol {
-    pub fn new(col: Vec<String>, head: String) -> DataCol {
+    pub fn new(col: Vec<Vec<String>>, head: String) -> DataCol {
         DataCol{ head, col }
     }
 }
 
 pub struct TransientDataCol {
     pub head: Option<String>,
-    pub col: Option<Vec<String>>
+    pub col: Option<Vec<Vec<String>>>
 
 }
 impl TransientDataCol {
@@ -23,7 +23,7 @@ impl TransientDataCol {
     pub fn add_head(&mut self, head: String) {
         self.head = Some(head);
     }
-    pub fn add_col(&mut self, col: Vec<String>) {
+    pub fn add_col(&mut self, col: Vec<Vec<String>>) {
         self.col = Some(col);
     }
 

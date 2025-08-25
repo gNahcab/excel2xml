@@ -22,9 +22,9 @@ special case in assignments:
 - rest= (String or command) can be a propname or <cmd.find>
 
 line breaks
-SimpleText: no linebreaks allowed
-Textarea: use '<£CP>' to indicate a line-break in a string
-Richtext:use '<br/>' to indicate a line-break in a string
+- SimpleText: no linebreaks allowed
+- Textarea: use '<£CP>' to indicate a line-break in a string
+- Richtext: use '\<br/>' to indicate a line-break in a string
 
 ## terminal commands
 todo!

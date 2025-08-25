@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{format, Debug};
 use std::fs::File;
 use std::path::PathBuf;
-use hcl::{Block, BlockBuilder, Identifier};
+use hcl::{attribute, Block, BlockBuilder, Identifier};
 use hcl::edit::structure::Attribute;
 use regex::Regex;
 use rust_fuzzy_search::fuzzy_compare;
@@ -12,24 +12,41 @@ use crate::create_hcl::errors::CreateHCLError;
 use crate::create_hcl::hcl_resource::{HCLResource, WrapperHCLResource};
 use crate::create_hcl::supplement_hcl::{AttachedToHeader, SupplementHCL};
 
-pub fn write_hcl(file_name_table_name_table_headers: Vec<(String, String, Vec<String>)>, datamodel: DataModel, dm_path: &PathBuf) -> Result<(), CreateHCLError> {
+pub fn write_hcl(file_name_table_name_table_headers: Vec<(String, String, Vec<String>)>, datamodel: DataModel, dm_path: &PathBuf, folder_path: &PathBuf) -> Result<(), CreateHCLError> {
     let resources = hcl_resources(file_name_table_name_table_headers, &datamodel, dm_path)?;
-    write_resources_to_hcl(resources)?;
+    let non_existing_path = non_existing_path(datamodel.shortname);
+    write_resources_to_hcl(resources, non_existing_path,folder_path, dm_path)?;
     Ok(())
 }
+
+fn non_existing_path(shortname: String) -> PathBuf {
+    let mut name = format!("{}.hcl", shortname);
+    let mut path_buf = PathBuf::from(name);
+    let mut nr = 1;
+    loop {
+        if !path_buf.try_exists().unwrap() {
+            break;
+        }
+        name = format!("{}_{}.hcl", shortname, nr);
+        path_buf = PathBuf::from(name);
+        nr +=1;
+    }
+    path_buf
+}
+
 #[derive(Clone, Debug)]
 pub enum NameType {
     FileName,
     TableName(String)
 }
 
-fn write_resources_to_hcl(hcl_resources: Vec<HCLResource>) -> Result<(), CreateHCLError>{
-   let mut buffer = File::create("foo.hcl")?;
-    add_attribute(&mut buffer, "resources_folder_path", "TO_ADD")?;
-    add_attribute(&mut buffer, "shortcode", "TO_ADD")?;
-    add_attribute(&mut buffer, "shortname", "TO_ADD")?;
+fn write_resources_to_hcl(hcl_resources: Vec<HCLResource>, new_path: PathBuf, resources_folder_path: &PathBuf, dm_path: &PathBuf) -> Result<(), CreateHCLError>{
+    let resources_folder_path = rel_path(resources_folder_path, 0)?;
+    let dm_path = rel_path(dm_path, 1)?;
+    let mut buffer = File::create(new_path)?;
+    add_attribute(&mut buffer, "resources_folder_path", resources_folder_path.as_str())?;
     add_attribute(&mut buffer, "set_permissions", "TO_ADD")?;
-    add_attribute(&mut buffer, "datamodel_path", "TO_ADD")?;
+    add_attribute(&mut buffer, "datamodel_path", dm_path.as_str())?;
     add_attribute(&mut buffer, "separator", "TO_ADD")?;
 
     for hcl_res in hcl_resources {
@@ -45,6 +62,27 @@ fn write_resources_to_hcl(hcl_resources: Vec<HCLResource>) -> Result<(), CreateH
     Ok(())
 }
 
+fn rel_path (path: &PathBuf, up: usize) -> Result<String, CreateHCLError> {
+    // return relative path
+    // up: number of ancestors to traverse in the path upwards
+    // if there are less ancestors to traverse upwards: stop and return whole path
+    let up = up + 1;
+    let path = match path.to_str() {
+        None => {
+            return Err(CreateHCLError::InputError(format!("Cannot convert '{:?}' to str", path)))
+        }
+        Some(path) => {
+            path
+        }
+    };
+    let positions: Vec<usize> = path.match_indices("/").into_iter().map(|(pos, value)|pos).collect::<Vec<_>>().iter().rev().take(up).map(|pos|pos.to_owned()).collect::<Vec<usize>>();
+    if positions.len() < up {
+        return Ok(path.to_string())
+    }
+    let last = positions.last().unwrap() + 1;
+    Ok(path[last..].to_string())
+}
+
 fn add_attribute(mut buffer: &mut File, key: &str, value: &str) -> Result<(), CreateHCLError> {
     let attribute = hcl::Attribute::new(Identifier::new(key)?, value);
     hcl::format::to_writer(&mut buffer, &attribute)?;
@@ -56,10 +94,28 @@ fn sheet_block(hcl_res: &HCLResource, attribute: Attribute) -> Result<Block, Cre
         .add_label(format!("{}", &hcl_res.sheet_nr))
         .add_attribute(attribute)
         .add_blocks(assignments_block(&hcl_res.header_assignments, &hcl_res.header_id_label))
-        .add_blocks(supplements_block(&hcl_res.header_supplements));
+        .add_blocks(supplements_block(&hcl_res.header_supplements))
+        .add_blocks(transforms_block(&hcl_res.transforms));
     Ok(block_builder.build())
 }
 
+fn transforms_block(transforms: &Vec<String>) -> Result<Block, CreateHCLError> {
+    todo!()
+}
+
+fn block_builder(identifier: &str, ) -> Result<Block, CreateHCLError> {
+    // todo abstract function
+    //Vec<A>, for add to block
+    //block_builder("supplements", supplements(&hcl_res.header_supplements)?)?;
+    /*
+    let block_builder = BlockBuilder::new(identifier).
+        add_blocks(
+        );
+    Ok(block_builder.build())
+
+     */
+    todo!()
+}
 fn supplements_block(header_supplements: &HashMap<String, SupplementHCL>) -> Result<Block, CreateHCLError> {
     let block_builder = BlockBuilder::new("supplements").
         add_blocks(

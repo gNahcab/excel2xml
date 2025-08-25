@@ -1,10 +1,12 @@
 use std::cmp::PartialEq;
 use std::collections::HashMap;
+use log::error;
 use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::super_field::SuperField;
 use crate::parse_hcl::domain::prop_supplement::{PropSupplement};
 use crate::parse_hcl::domain::resource_supplement::{ResourceSupplType, ResourceSupplement};
 use crate::parse_xlsx::domain::dasch_value_field::{DaschValueField, FieldsWrapper};
+use crate::parse_xlsx::domain::data_header::add_prop_suppl;
 use crate::parse_xlsx::domain::data_row::DataRow;
 use crate::parse_xlsx::domain::header::Header;
 use crate::parse_xlsx::domain::license::License;
@@ -115,12 +117,10 @@ impl InstanceWrapper {
         //transient_instance.add_resource_permissions(res_permissions);
         //let copyright_holder = extract_or_create_copyright_holder();
         //transient_instance.add_copyright_holder(copyright_holder);
-        for (row_nr, entry) in self.0.row.iter().enumerate() {
-            let entry = entry.trim();
-            if entry.is_empty() {
+        for (row_nr, entries) in self.0.row.iter().enumerate() {
+            if entries.is_empty() {
                 continue;
             }
-            let entries: Vec<String> = entry.split(separator).map(|value|value.to_string()).collect();
             entry_empty(&entries, row_nr)?;
             if row_nr_to_propname.contains_key(&row_nr) {
                 let header = row_nr_to_propname.get(&row_nr).unwrap();
@@ -132,18 +132,17 @@ impl InstanceWrapper {
             }
             if row_nr_to_res_suppl.contains_key(&row_nr) {
                 let res_suppl = row_nr_to_res_suppl.get(&row_nr).unwrap();
-                if entries.len() != 1 && !res_suppl.suppl_type.eq(&ResourceSupplType::Authorship)  {
-                    return Err(ExcelDataError::InputError(format!("Entries of res-suppl should be 1, but found '{}' number of entries in :'{:?}'", entries.len(), entries)));
-                }
-                transient_instance.add_res_suppl(res_suppl.to_owned(), entry.to_owned());
+                add_res_suppl_value(res_suppl, &entries,  &mut transient_instance)?;
             }
             if row_nr_to_id_label.contains_key(&row_nr) {
                 match row_nr_to_id_label.get(&row_nr).unwrap() {
                     Header::ID => {
-                        transient_instance.add_id(entry.to_string())?;
+                        todo!()
+                        //transient_instance.add_id(entry.to_string())?;
                     }
                     Header::Label => {
-                        transient_instance.add_label(entry.to_string())?;
+                        todo!()
+                        //transient_instance.add_label(entry.to_string())?;
                     }
                 }
             } else {
@@ -155,6 +154,26 @@ impl InstanceWrapper {
         let resource_data = to_resource_data(&transient_instance.res_suppl_values, super_field, set_permissions, separator)?;
         Ok(Instance::new(dasch_value_fields, resource_data, transient_instance.id.unwrap(), transient_instance.label.unwrap()))
     }
+}
+
+fn add_res_suppl_value(res_suppl: &ResourceSupplement, entries: &Vec<String>, transient_instance: &mut TransientInstance) -> Result<(), ExcelDataError> {
+    if entries.len() != 1 && !res_suppl.suppl_type.eq(&ResourceSupplType::Authorship)  {
+        return Err(ExcelDataError::InputError(format!("Entries of res-suppl should be 1, but found '{}' number of entries in :'{:?}'", entries.len(), entries)));
+    }
+    /*
+    let no_empty_entry = no_white_space_no_line_break(entry);
+    transient_instance.add_res_suppl(res_suppl.to_owned(), no_empty_entry);
+    Ok(())
+     */
+    todo!()
+}
+
+fn no_white_space_no_line_break(entry: &str) -> String {
+    // remove carriage return, new line, whitespace
+    //entry.replace(" ", "")
+    //entry.replace("/n", "")
+    todo!()
+
 }
 
 fn entry_empty(entries: &Vec<String>, nr: usize) -> Result<(), ExcelDataError> {

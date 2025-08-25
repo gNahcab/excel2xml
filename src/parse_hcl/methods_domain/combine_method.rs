@@ -9,7 +9,7 @@ pub struct WrapperCombineMethod (pub(crate) Block);
 struct TransientStructureCombineMethod {
     input: Option<Vec<HeaderValue>>,
     output: String,
-    separator: Option<String>,
+    middle: Option<String>,
     prefix: Option<String>,
     suffix: Option<String>,
 }
@@ -19,7 +19,7 @@ impl TransientStructureCombineMethod {
         TransientStructureCombineMethod{
             input: None,
             output,
-            separator: None,
+            middle: None,
             prefix: None,
             suffix: None,
         }
@@ -34,11 +34,11 @@ impl TransientStructureCombineMethod {
         self.input = Option::from(input);
         Ok(())
     }
-    pub(crate) fn add_separator(&mut self, separator: String) -> Result<(), HCLDataError>{
-        if self.separator.is_some() {
-            return Err(HCLDataError::ParsingError(format!("method: '{:?}' has multiple separator-attributes", self)));
+    pub(crate) fn add_middle(&mut self, middle: String) -> Result<(), HCLDataError>{
+        if self.middle.is_some() {
+            return Err(HCLDataError::ParsingError(format!("method: '{:?}' has multiple middle-attributes", self)));
         }
-        self.separator = Option::from(separator);
+        self.middle = Option::from(middle);
         Ok(())
     }
     pub(crate) fn add_prefix(&mut self, prefix: String) -> Result<(), HCLDataError>{
@@ -60,8 +60,8 @@ impl TransientStructureCombineMethod {
         if self.input.is_none() {
             return Err(HCLDataError::ParsingError(format!("combine-method: '{:?}' doesn't have an input-attribute provided", self)));
         }
-        if self.separator.is_none() {
-            return Err(HCLDataError::ParsingError(format!("combine-method: '{:?}' doesn't have a separator provided", self)));
+        if self.middle.is_none() {
+            return Err(HCLDataError::ParsingError(format!("combine-method: '{:?}' doesn't have a middle provided", self)));
         }
         // suffix, prefix are optional
         Ok(())
@@ -80,8 +80,8 @@ impl WrapperCombineMethod {
                     let input_vec = parse_input(attribute.expr().to_owned())?;
                     transient_structure.add_input(input_vec)?;
                 }
-                "separator" => {
-                    transient_structure.add_separator(attribute.expr.to_string_2()?)?;
+                "middle" => {
+                    transient_structure.add_middle(attribute.expr.to_string_2()?)?;
                 }
                 "prefix" => {
                     transient_structure.add_prefix(attribute.expr.to_string_2()?)?;
@@ -118,7 +118,7 @@ fn parse_input(input: Expression) -> Result<Vec<HeaderValue>, HCLDataError>{
 pub struct CombineMethod{
     pub input: Vec<HeaderValue>,
     pub output: String,
-    pub separator: Option<String>,
+    pub middle: Option<String>,
     pub prefix: Option<String>,
     pub suffix: Option<String>,
 }
@@ -129,7 +129,7 @@ impl CombineMethod {
         CombineMethod {
         input: transient_structure.input.unwrap(),
         output: transient_structure.output,
-        separator: transient_structure.separator,
+        middle: transient_structure.middle,
         prefix: transient_structure.prefix,
         suffix: transient_structure.suffix,
         }
@@ -154,7 +154,7 @@ mod test {
     fn test_combine_method() {
         let block = block!(combine "new_ID"{
             input = [0, "lower"]//"{$0}{$lower}"
-            separator = "_"
+            middle = "_"
             prefix = "BIZ_"
             suffix = "_ZIP"});
         let result = WrapperCombineMethod(block.to_owned()).to_combine_method();

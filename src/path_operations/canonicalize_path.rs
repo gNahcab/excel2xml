@@ -1,8 +1,16 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use crate::path_operations::errors::PathOpError;
 
-pub fn canonicalize_path(path: &PathBuf) -> Result<PathBuf, PathOpError> {
+pub fn canonicalize_path(path: &PathBuf, curr_folder: &&&Path) -> Result<PathBuf, PathOpError> {
+    let path = match  path.is_relative() {
+        true => {
+            curr_folder.to_owned().join(path)
+        }
+        false => {
+            path.to_owned()
+        }
+    };
     match fs::canonicalize(&path) {
         Ok(full_path) => { Ok(full_path) }
         Err(err) => {

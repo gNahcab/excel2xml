@@ -278,7 +278,7 @@ mod test {
         let combine_method = CombineMethod {
             input: vec![HeaderValue::Name("hasExternalLink2".to_string()), HeaderValue::Name("hasValue".to_string())],
             output: "hasExternalLink".to_string(),
-            separator: Option::from("_".to_string()),
+            middle: Option::from("_".to_string()),
             prefix: Option::from("my_project".to_string()),
             suffix: None,
         };
@@ -311,7 +311,7 @@ mod test {
         let combine_method = CombineMethod {
             input: vec![HeaderValue::Name("hasExternalLink2".to_string()), HeaderValue::Number(4)],
             output: "hasExternalLink".to_string(),
-            separator: Option::from("_".to_string()),
+            middle: Option::from("_".to_string()),
             prefix: Option::from("my_project".to_string()),
             suffix: None,
         };

@@ -5,6 +5,8 @@ use crate::parse_dm::domain::dasch_list::{DaSCHList, ListNode};
 use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::label::Label;
 use crate::parse_hcl::errors::HCLDataError;
+use crate::parse_hcl::errors::HCLDataError::MethodError;
+use crate::parse_hcl::errors::MethodError::Combine;
 use crate::parse_hcl::header_value::HeaderValue;
 use crate::parse_hcl::methods_domain::behavior_type::BehaviorType;
 use crate::parse_hcl::methods_domain::combine_method::CombineMethod;
@@ -45,7 +47,8 @@ pub fn perform_replace_label_name(replace_label_name_method: &ReplaceLabelNameMe
     let col = &col_nr_to_cols_expanded.get(&header_number).unwrap();
     let labels_to_names = _labels_to_names(data_model, &replace_label_name_method.list_name)?;
     let new_column = _replace_label_name(col, labels_to_names, separator);
-    Ok(DataCol::new(new_column, replace_label_name_method.output.to_owned()))
+    //Ok(DataCol::new(new_column, replace_label_name_method.output.to_owned()))
+    todo!()
 }
 
 fn _labels_to_names(data_model: &&DataModel, list_name: &String) -> Result<HashMap<String, String>, HCLDataError> {
@@ -71,6 +74,7 @@ fn _flatten_labels<'node>(list_nodes: &'node Vec<ListNode>, labels_names: &mut V
 }
 
 fn _replace_label_name(data_col: &&DataCol, label_to_name: HashMap<String, String>, separator: &String) -> Vec<String> {
+    /*
     data_col.col
         .iter()
         .map(|value| value.split(separator))
@@ -84,8 +88,11 @@ fn _replace_label_name(data_col: &&DataCol, label_to_name: HashMap<String, Strin
             .collect::<Vec<String>>())
         .map(|values| values.join(separator))
         .collect()
+     */
+    todo!()
 }
 pub fn perform_replace_with_iri(replace_with_iri_method: &ReplaceWithIRI, col_nr_to_cols_expanded: &HashMap<usize, DataCol>, existing_header_to_col_nr: &HashMap<String, usize>, res_name_iri: &HashMap<String, HashMap<String, String>>,  separator: &String) -> Result<DataCol, HCLDataError> {
+    /*
     let header_number = find_header_number(&replace_with_iri_method.input, col_nr_to_cols_expanded, existing_header_to_col_nr)?;
     let col = &col_nr_to_cols_expanded.get(&header_number).unwrap();
     let label_to_iri = match res_name_iri.get(replace_with_iri_method.resource.as_str()) {
@@ -94,9 +101,12 @@ pub fn perform_replace_with_iri(replace_with_iri_method: &ReplaceWithIRI, col_nr
     };
     let new_column = _replace_with_iri(col, label_to_iri, separator);
     Ok(DataCol::new(new_column, replace_with_iri_method.output.to_owned()))
+     */
+    todo!()
 }
 
 fn _replace_with_iri(data_col: &&DataCol, label_to_iri: &HashMap<String, String>, separator: &String) -> Vec<String> {
+    /*
     data_col.col
         .iter()
         .map(|value| value.split(separator))
@@ -107,23 +117,32 @@ fn _replace_with_iri(data_col: &&DataCol, label_to_iri: &HashMap<String, String>
             .collect::<Vec<String>>())
         .map(|values|values.join(separator))
         .collect()
+     */
+    todo!()
 }
 
 pub fn perform_replace(replace_method: &ReplaceMethod, col_nr_to_cols_expanded: &HashMap<usize, DataCol>, existing_header_to_col_nr: &HashMap<String, usize>, separator: &String) -> Result<DataCol, HCLDataError> {
+    /*
     let header_number = find_header_number(&replace_method.input, col_nr_to_cols_expanded, existing_header_to_col_nr)?;
     let col = &col_nr_to_cols_expanded.get(&header_number).unwrap();
 
     let new_column = _replace(col, &replace_method.new, &replace_method.old, &replace_method.behavior, separator);
     Ok(DataCol::new(new_column, replace_method.output.to_owned()))
+     */
+    todo!()
 }
 pub fn perform_to_date(to_date_method: &ToDateMethod, col_nr_to_cols: &HashMap<usize, DataCol>, header_to_col_nr: &HashMap<String, usize>, separator: &String) -> Result<DataCol, HCLDataError> {
+    /*
     let header_number = find_header_number(&to_date_method.input, col_nr_to_cols, header_to_col_nr)?;
     let col = &col_nr_to_cols.get(&header_number).unwrap();
     let new_col = _to_date(col, &to_date_method.date_patterns, &to_date_method.date_type, separator)?;
     Ok(DataCol::new(new_col, to_date_method.output.to_owned()))
+     */
+    todo!()
 }
 
 fn _to_date(data_col: &&DataCol, date_patterns: &Vec<DatePattern>, date_type: &DateType, separator: &String) -> Result<Vec<String>, HCLDataError> {
+    /*
     let mut new_col = vec![];
     for value in data_col.col.iter() {
         if value.is_empty() {
@@ -139,9 +158,12 @@ fn _to_date(data_col: &&DataCol, date_patterns: &Vec<DatePattern>, date_type: &D
         }
     }
     Ok(new_col)
+     */
+    todo!()
 }
 
 pub fn perform_alter(alter_method: &AlterMethod, col_nr_to_cols: &HashMap<usize, DataCol>, header_to_col_nr: &HashMap<String, usize>) -> Result<DataCol, HCLDataError> {
+    /*
     let header_number = find_header_number(&alter_method.input, col_nr_to_cols, header_to_col_nr)?;
     let data_col = &col_nr_to_cols.get(&header_number).unwrap();
     let mut new_col = vec![];
@@ -157,6 +179,8 @@ pub fn perform_alter(alter_method: &AlterMethod, col_nr_to_cols: &HashMap<usize,
         new_col.push(new_value);
     }
     Ok(DataCol::new(new_col, alter_method.output.to_owned()))
+     */
+    todo!()
 }
 pub fn perform_create(create_method: &CreateMethod, length: usize) -> DataCol {
     match create_method {
@@ -172,109 +196,128 @@ pub fn perform_create(create_method: &CreateMethod, length: usize) -> DataCol {
 }
 
 fn perform_permissions_create(permissions_create: &PermissionsCreate, length: usize) -> DataCol {
+    /*
     let mut new_data_col = vec![];
     for _ in 0..length {
         new_data_col.push(permissions_create.permissions.to_string())
     }
     DataCol::new(new_data_col, permissions_create.output.to_owned())
+     */
+    todo!()
 }
 fn perform_int_create(int_create: &IntegerCreate, length: usize) -> DataCol {
-    let mut new_data_col = vec![];
-    let mut curr = int_create.start;
-    match int_create.step.step_method {
-        StepMethod::Plus => {
-            for _ in 0..length {
-                curr = curr + int_create.step.step_rate;
-                let mut value = "".to_string();
-                if int_create.prefix.is_some() {
-                    value.push_str(int_create.prefix.as_ref().unwrap())
-                }
-                value.push_str(curr.to_string().as_str());
-                if int_create.suffix.is_some() {
-                    value.push_str(int_create.prefix.as_ref().unwrap())
-                }
-                new_data_col.push(value);
+    todo!()
+    /*
+let mut new_data_col = vec![];
+let mut curr = int_create.start;
+match int_create.step.step_method {
+    StepMethod::Plus => {
+        for _ in 0..length {
+            curr = curr + int_create.step.step_rate;
+            let mut value = "".to_string();
+            if int_create.prefix.is_some() {
+                value.push_str(int_create.prefix.as_ref().unwrap())
             }
-        }
-        _ => {todo!("not added")}
-        /*
-        StepMethod::Multiplication => {
-            for _ in 0..length {
-                curr = curr * int_create.step.step_rate;
-                let mut value = "".to_string();
-                if int_create.prefix.is_some() {
-                    value.push_str(int_create.prefix.as_ref().unwrap())
-                }
-                value.push_str(curr.to_string().as_str());
-                if int_create.suffix.is_some() {
-                    value.push_str(int_create.prefix.as_ref().unwrap())
-                }
-                new_data_col.push(value);
+            value.push_str(curr.to_string().as_str());
+            if int_create.suffix.is_some() {
+                value.push_str(int_create.prefix.as_ref().unwrap())
             }
+            new_data_col.push(value);
         }
-
-         */
     }
-    DataCol::new(new_data_col, int_create.output.to_owned())
+    _ => {todo!("not added")}
+    StepMethod::Multiplication => {
+        for _ in 0..length {
+            curr = curr * int_create.step.step_rate;
+            let mut value = "".to_string();
+            if int_create.prefix.is_some() {
+                value.push_str(int_create.prefix.as_ref().unwrap())
+            }
+            value.push_str(curr.to_string().as_str());
+            if int_create.suffix.is_some() {
+                value.push_str(int_create.prefix.as_ref().unwrap())
+            }
+            new_data_col.push(value);
+        }
+    }
+
+}
+DataCol::new(new_data_col, int_create.output.to_owned())
+     */
 }
 
 pub fn perform_combine(combine_method: &CombineMethod, col_nr_to_cols: &HashMap<usize, DataCol>, header_to_col_nr: &HashMap<String, usize>) -> Result<DataCol, HCLDataError> {
-    todo!("add separator");
     let first_number = find_header_number(combine_method.input.get(0).unwrap(),col_nr_to_cols, header_to_col_nr)?;
     let second_number = find_header_number(combine_method.input.get(1).unwrap(), col_nr_to_cols, header_to_col_nr)?;
     let first_col = &col_nr_to_cols.get(&first_number).unwrap();
     let second_col = &col_nr_to_cols.get(&second_number).unwrap();
-    let new_col = _combine(first_col, second_col, &combine_method.prefix, &combine_method.suffix, &combine_method.separator);
+    let new_col = _combine(first_col, second_col, &combine_method)?;
     Ok(DataCol::new(new_col, combine_method.output.to_owned()))
 }
 
-fn _combine(first_col: &&DataCol, second_col: &&DataCol, prefix: &Option<String>, suffix: &Option<String>, separator: &Option<String>) -> Vec<String> {
-    todo!("add separator");
-    let mut new_col = vec![];
-    // it is assumed first_col and second_col have same length
+fn _combine(first_col: &&DataCol, second_col: &&DataCol, combine_method: &CombineMethod) -> Result<Vec<Vec<String>>, HCLDataError>{
+    let mut new_col:Vec<Vec<String>> = vec![];
+    // it is assumed that first col and second col have the same length
     for i in 0..first_col.col.len() {
-        let mut new_combined_value = "".to_string();
-        if prefix.is_some() {
-            new_combined_value += &prefix.as_ref().unwrap().as_str();
+        let field_first = first_col.col.get(i).unwrap();
+        let field_second = second_col.col.get(i).unwrap();
+        // the number of values in a field must match in both columns; it is assumed that the relation is bijective
+        if field_first.len() != field_second.len() {
+            return Err(MethodError(Combine(format!("Fields have different length: First field: '{:?}', second field: '{:?}'. Problem happens in '{:?}'", field_first, field_second, combine_method))));
         }
-        new_combined_value += first_col.col[i].as_str();
-        if separator.is_some() {
-            new_combined_value += &separator.as_ref().unwrap().as_str();
+        let mut new_fields = vec![];
+        for j in 0..field_first.len() {
+            let mut new_combined_value = "".to_string();
+            if combine_method.prefix.is_some() {
+                new_combined_value += &combine_method.prefix.as_ref().unwrap().as_str();
+            }
+            new_combined_value += field_first[j].as_str();
+            if combine_method.middle.is_some() {
+                new_combined_value += &combine_method.middle.as_ref().unwrap().as_str();
+            }
+            new_combined_value += field_second[j].as_str();
+            if combine_method.suffix.is_some() {
+                new_combined_value += &combine_method.suffix.as_ref().unwrap().as_str();
+            }
+            new_fields.push(new_combined_value);
         }
-        new_combined_value += second_col.col[i].as_str();
-        if suffix.is_some() {
-            new_combined_value += &suffix.as_ref().unwrap().as_str();
-        }
-        new_col.push(new_combined_value);
+        new_col.push(new_fields);
     }
-    new_col
+    Ok(new_col)
 }
 
 pub fn perform_upper(upper_method: &UpperMethod, col_nr_to_cols: &HashMap<usize, DataCol>, headers_to_col_nr: &HashMap<String, usize>) -> Result<DataCol, HCLDataError> {
+    todo!()
+    /*
     let header_number = find_header_number(&upper_method.input, col_nr_to_cols, headers_to_col_nr)?;
     let data_col = &col_nr_to_cols.get(&header_number).unwrap();
     let col = _upper(data_col);
     Ok(DataCol::new(col, upper_method.output.to_owned()))
+
+     */
 }
 
 fn _upper(data_col: &DataCol) -> Vec<String> {
+    //data_col.col.iter().map(|value| value.to_lowercase()).collect()
     todo!("add separator");
-    data_col.col.iter().map(|value| value.to_lowercase()).collect()
 }
 
 pub fn perform_lower(lower_method: &LowerMethod, col_nr_to_cols: &HashMap<usize, DataCol>, headers_to_col_nr: &HashMap<String, usize>) -> Result<DataCol, HCLDataError> {
+    /*
     let header_number = find_header_number(&lower_method.input, col_nr_to_cols, headers_to_col_nr)?;
     let data_col = &col_nr_to_cols.get(&header_number).unwrap();
     let col = _lower(data_col);
     Ok(DataCol::new(col, lower_method.output.to_owned()))
-
+     */
+    todo!()
 }
 
 fn _lower(data_col: &DataCol) -> Vec<String> {
+    //data_col.col.iter().map(|value| value.to_lowercase()).collect()
     todo!("add separator");
-    data_col.col.iter().map(|value| value.to_lowercase()).collect()
 }
 fn _replace(data_column: &&DataCol, new: &String, old: &String, behavior: &BehaviorType, separator: &String) -> Vec<String> {
+    /*
      match behavior {
         BehaviorType::Lazy => {
             //let _ = data_column.column.iter().map(|value| transient_column.add_data(value.replacen(new, old, 1)));
@@ -294,6 +337,9 @@ fn _replace(data_column: &&DataCol, new: &String, old: &String, behavior: &Behav
                     .collect::<Vec<_>>()).map(|new_values|new_values.join(separator)).collect::<Vec<_>>()
         }
     }
+
+     */
+    todo!()
 }
 
 fn find_header_number(input: &HeaderValue, col_nr_to_data_col: &HashMap<usize, DataCol>, header_to_col_nr: &HashMap<String, usize>) -> Result<usize, HCLDataError> {

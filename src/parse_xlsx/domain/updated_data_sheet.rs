@@ -54,6 +54,7 @@ fn update_sheet(mut col_nr_to_col: HashMap<usize, DataCol>, mut header_to_col_nr
 }
 
 fn _base_col_nr(curr_headers: & DataRow, header: & String) -> Result<usize, HCLDataError>{
+    /*
     for (pos, curr_header) in curr_headers.row.iter().enumerate() {
         if curr_header == header {
             return Ok(pos)
@@ -77,12 +78,18 @@ fn _key_value_pos(expanded_data_sheet: &ExpandedDataSheet, identify_method: &&Id
         return Ok((key_pos.unwrap(), value_pos.unwrap()))
     }
     return Err(HCLDataError::ParsingError(format!("Identity-Method: Cannot find both key & value for '{}'. Key: {:?}, value: {:?}", identify_method.resource_name, key_pos, value_pos)));
+
+     */
+    todo!()
 }
 fn _key_value_column(expanded_data_sheet: &ExpandedDataSheet, identify_method:  &&IdentifyMethod) -> Result<(Vec<String>, Vec<String>), HCLDataError> {
+    /*
     let (key_pos, value_pos) = _key_value_pos(expanded_data_sheet, identify_method)?;
     let key_col = expanded_data_sheet.col_nr_to_cols.get(&key_pos).unwrap().col.to_owned();
     let value_col = expanded_data_sheet.col_nr_to_cols.get(&value_pos).unwrap().col.to_owned();
     Ok((key_col, value_col))
+     */
+    todo!()
 }
 
 fn _key_to_value_map(expanded_data_sheet: &ExpandedDataSheet, identify_method:  &&IdentifyMethod) -> Result<HashMap<String, String>, HCLDataError> {
@@ -94,6 +101,7 @@ fn _key_to_value_map(expanded_data_sheet: &ExpandedDataSheet, identify_method:  
     Ok(key_to_value)
 }
 fn identify_col(other_expaneded_sheet: &ExpandedDataSheet, identify_method: &IdentifyMethod, col_nr_to_cols: &HashMap<usize, DataCol>, header_to_col_nr: &HashMap<String, usize>, separator: &String) -> Result<DataCol, HCLDataError> {
+    /*
     let key_to_value = _key_to_value_map(other_expaneded_sheet, &identify_method)?;
     let base_pos = match header_to_col_nr.get(identify_method.input.as_str()) {
         None => {
@@ -104,6 +112,8 @@ fn identify_col(other_expaneded_sheet: &ExpandedDataSheet, identify_method: &Ide
     let base_col = &col_nr_to_cols.get(base_pos).unwrap().col;
     let new_col = perform_identify(key_to_value, base_col, separator);
     Ok(DataCol::new(new_col, identify_method.output.to_owned()))
+     */
+    todo!()
 }
 
 fn get_correct_expanded_sheet<'a>(expanded_data_sheets: &'a Vec<ExpandedDataSheet>, res_name: &'a String) -> Result<&'a ExpandedDataSheet, HCLDataError> {

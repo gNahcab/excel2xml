@@ -1,15 +1,12 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use crate::parse_dm::domain::data_model::DataModel;
-use crate::parse_dm::domain::resource::DMResource;
 use crate::parse_hcl::domain::parse_info_draft::ParseInformationDraft;
 use crate::parse_hcl::domain::supplements::Supplements;
 use crate::parse_hcl::domain::xlsx_workbook_info::XLSXWorbookInfo;
-use crate::parse_hcl::errors::HCLDataError;
 use crate::parse_hcl::transformations::Transformations;
 
 pub struct ParseInformation {
-    pub shortcode: String,
+    //pub shortcode: String,
     pub rel_path_to_xlsx_workbooks:HashMap<String, XLSXWorbookInfo>,
     pub res_folder: PathBuf,
     pub separator: String,
@@ -22,7 +19,7 @@ pub struct ParseInformation {
 impl ParseInformation {
     pub(crate) fn new(p_i_draft: ParseInformationDraft, dm_path: PathBuf, data_folder: PathBuf) -> ParseInformation {
         ParseInformation{
-            shortcode: p_i_draft.shortcode,
+            //shortcode: p_i_draft.shortcode,
             rel_path_to_xlsx_workbooks: p_i_draft.rel_path_to_xlsx_workbooks,
             res_folder: data_folder,
             dm_path,
@@ -31,14 +28,6 @@ impl ParseInformation {
             res_name_to_updates: p_i_draft.res_name_to_updates,
             res_name_to_supplements: p_i_draft.res_name_to_supplements,
         }
-    }
-    pub(crate) fn compare_parse_info_to_datamodel(&self, data_model: &DataModel) -> Result<(), HCLDataError> {
-        // todo extend this
-        // check for shortcode
-        if self.shortcode != data_model.shortcode {
-            return Err(HCLDataError::ParsingError(format!("Shortcode of Parse-Info and Datamodel don't match. Parse-info: {}, Datamodel: {}", self.shortcode, data_model.shortcode)));
-        }
-        Ok(())
     }
 }
 
