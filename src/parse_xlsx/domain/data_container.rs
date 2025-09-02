@@ -46,7 +46,7 @@ impl DataContainerWrapper {
         let (row_nr_to_propname, row_nr_to_prop_suppl, row_nr_to_res_suppl, row_nr_to_id_label) = change_col_nr_to_row_nr(col_nr_to_propname, col_nr_to_prop_suppl, col_nr_to_res_suppl, col_nr_to_row_nr, col_nr_to_id_label);
         let data_header = DataHeaderWrapper(self.0.header_to_col_nr.to_owned()).to_data_header(&resource, &row_nr_to_propname, &row_nr_to_prop_suppl, &row_nr_to_res_suppl, &row_nr_to_id_label)?;
         for row in rows.iter() {
-            let instance = InstanceWrapper(row.to_owned()).to_instance(&data_model, &parse_info.separator, &row_nr_to_propname, &row_nr_to_prop_suppl, &row_nr_to_res_suppl, &row_nr_to_id_label, &resource.super_field, parse_info.set_permissions)?;
+            let instance = InstanceWrapper(row.to_owned()).to_instance(&data_model, &parse_info.separator, &row_nr_to_propname, &row_nr_to_prop_suppl, &row_nr_to_res_suppl, &row_nr_to_id_label, &resource, parse_info.set_permissions)?;
             data_instances.push(instance);
         }
         Ok(DataContainer::new(data_header, data_instances, self.0.res_name.to_owned()))
@@ -54,7 +54,7 @@ impl DataContainerWrapper {
 }
 
 
-fn change_col_nr_to_row_nr(col_nr_to_propname: HashMap<usize, String>, col_nr_to_prop_suppl: HashMap<usize, PropSupplement>, col_nr_to_res_suppl: HashMap<usize, ResourceSupplement>, col_nr_to_row_nr: HashMap<usize, usize>, col_nr_to_id_label: HashMap<usize, Header>) -> (HashMap<usize, String>, HashMap<usize, PropSupplement>, HashMap<usize, ResourceSupplement>, HashMap<usize, Header>) {
+fn change_col_nr_to_row_nr(col_nr_to_propname: HashMap<usize, Vec<String>>, col_nr_to_prop_suppl: HashMap<usize, Vec<PropSupplement>>, col_nr_to_res_suppl: HashMap<usize, Vec<ResourceSupplement>>, col_nr_to_row_nr: HashMap<usize, usize>, col_nr_to_id_label: HashMap<usize, Vec<Header>>) -> (HashMap<usize, Vec<String>>, HashMap<usize, Vec<PropSupplement>>, HashMap<usize, Vec<ResourceSupplement>>, HashMap<usize, Vec<Header>>) {
     (
         col_nr_to_propname.iter().map(|(col_nr, propname)| (col_nr_to_row_nr.get(col_nr).unwrap().to_owned(), propname.to_owned())).collect(),
         col_nr_to_prop_suppl.iter().map(|(col_nr, header)| (col_nr_to_row_nr.get(col_nr).unwrap().to_owned(), header.to_owned())).collect(),

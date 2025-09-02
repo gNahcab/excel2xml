@@ -9,9 +9,10 @@ use crate::parse_hcl::methods_domain::lower_upper_method::{LowerMethod, UpperMet
 use crate::parse_hcl::methods_domain::method::Method;
 use crate::parse_hcl::methods_domain::replace_label_name::{ReplaceLabelNameMethod, WrapperReplaceLabelNameMethod};
 use crate::parse_hcl::methods_domain::replace_method::{ReplaceMethod, WrapperReplaceMethod};
+use crate::parse_hcl::methods_domain::separate_method::{SeparateMethod, WrapperSeparateMethod};
 use crate::parse_hcl::methods_domain::to_alter_method::{AlterMethod, WrapperAlterMethod};
 use crate::parse_hcl::methods_domain::to_date_method::{ToDateMethod, WrapperToDateMethod};
-use crate::parse_hcl::methods_domain::update_with_server_method::{ReplaceWithIRI, WrapperUpdateWithServer};
+use crate::parse_hcl::methods_domain::update_with_server_method::{UpdateWithServer, WrapperUpdateWithServer};
 
 #[derive(Debug)]
 pub struct TransformationsWrapper (pub(crate) Block);
@@ -27,9 +28,12 @@ pub struct Transformations{
     pub create_methods:Vec<CreateMethod>,
     pub alter_methods: Vec<AlterMethod>,
     pub identify_methods:Vec<IdentifyMethod>,
-    pub replace_with_iri: Vec<ReplaceWithIRI>
+    pub update_with_server_methods: Vec<UpdateWithServer>,
+    pub separate_methods: Vec<SeparateMethod>
 }
 
+impl Transformations {
+}
 
 impl Transformations {
     fn new() -> Transformations {
@@ -43,11 +47,15 @@ impl Transformations {
             create_methods: vec![],
             alter_methods: vec![],
             identify_methods: vec![],
-            replace_with_iri: vec![],
+            update_with_server_methods: vec![],
+            separate_methods: vec![],
         }
     }
     pub(crate) fn add_lower_method(&mut self, lower_method: LowerMethod) {
         self.lower_methods.push(lower_method);
+    }
+    pub(crate) fn add_separate_method(&mut self, separate_method: SeparateMethod) {
+        self.separate_methods.push(separate_method);
     }
     pub(crate) fn add_upper_method(&mut self, upper_method: UpperMethod) {
         self.upper_methods.push(upper_method);
@@ -74,8 +82,8 @@ impl Transformations {
     pub(crate) fn add_identify_method(&mut self, identify_method: IdentifyMethod) {
         self.identify_methods.push(identify_method);
     }
-    pub(crate) fn add_update_with_server_method(&mut self, update_with_server_method: ReplaceWithIRI) {
-        self.replace_with_iri.push(update_with_server_method);
+    pub(crate) fn add_update_with_server_method(&mut self, update_with_server_method: UpdateWithServer) {
+        self.update_with_server_methods.push(update_with_server_method);
     }
     pub(crate) fn output_values(&self) -> Vec<&String> {
         let mut vec:Vec<&String> = vec![];
@@ -236,6 +244,10 @@ impl TransformationsWrapper {
                  "update_with_server"=> {
                      let update_with_server_method = WrapperUpdateWithServer(block.to_owned()).to_update_with_server_method()?;
                      transformations.add_update_with_server_method(update_with_server_method);
+                 }
+                 "separate"=> {
+                     let separate_method = WrapperSeparateMethod(block.to_owned()).to_separate_method()?;
+                     transformations.add_separate_method(separate_method);
                  }
                 _ => {
                     return Err(HCLDataError::ParsingError(format!("unknown method found in transformations: '{:?}'", block.identifier)));

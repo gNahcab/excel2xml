@@ -53,7 +53,7 @@ fn extract_file_name_table_name_header(path: &PathBuf)  -> Result<(String, Strin
         let header_row: _ = table.rows().take(1).collect::<Vec<_>>()[0];
         let mut headers: Vec<String> = vec![];
         for header in header_row.iter() {
-            let header = clean_string(&parse_data_to_string(header)?);
+            let header = clean_header_string(&parse_data_to_string(header)?);
             headers.push(header);
         }
         Ok((file_name, table_name.to_owned(), headers))
@@ -95,9 +95,14 @@ pub fn excel2xml(hcl_path: &PathBuf) {
     write_xml(&data_containers, &data_model).unwrap();
 }
 
-pub fn clean_string(value: &String) -> String {
+pub fn clean_header_string(header: &String) -> String {
     // remove whitespace and \n (new line)
-    value.trim().replace("\n", "")
+    header.trim().replace("\n", "")
+}
+
+pub fn clean_value(value: &str) -> String {
+    // remove whitespace and \n (new line)
+    value.trim().to_owned()
 }
 fn res_names_iris(transformations: &Vec<&Transformations>, shortcode: &String) -> Result<HashMap<String, HashMap<String, String>>, Excel2XmlError> {
     if !call_necessary(transformations) {
@@ -152,7 +157,7 @@ fn fetch_csv_string(shortcode: &String) -> Result<String, APICallError> {
 fn call_necessary(transformations: &Vec<&Transformations>) -> bool {
     let mut call_necessary = false;
     for transformation in transformations {
-        if !transformation.replace_with_iri.is_empty() {
+        if !transformation.update_with_server_methods.is_empty() {
             call_necessary = true;
             break;
         }

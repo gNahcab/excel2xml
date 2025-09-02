@@ -1,11 +1,5 @@
-use crate::parse_dm::domain::object::ValueObject;
-use crate::parse_dm::domain::property::Property;
-use crate::parse_xlsx::domain::instance::split_field;
 use crate::parse_xlsx::domain::encoding::{Encoding, EncodingWrapper};
-use crate::parse_xlsx::domain::header::Header;
 use crate::parse_xlsx::domain::permissions::{Permissions, PermissionsWrapper};
-use crate::parse_xlsx::domain::subheader::Subheader;
-use crate::parse_xlsx::errors::ExcelDataError;
 
 pub struct SubheaderValues {
     pub permissions: Vec<Permissions>,

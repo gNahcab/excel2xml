@@ -81,7 +81,7 @@ impl TransientXLSXWorkbook {
                 transformations.combine_methods.iter().for_each(|method|output_names.push(&method.output));
                 transformations.upper_methods.iter().for_each(|method|output_names.push(&method.output));
                 transformations.lower_methods.iter().for_each(|method|output_names.push(&method.output));
-                transformations.replace_with_iri.iter().for_each(|method|output_names.push(&method.output));
+                transformations.update_with_server_methods.iter().for_each(|method|output_names.push(&method.output));
 
             }
         }

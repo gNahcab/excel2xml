@@ -2,6 +2,7 @@ use std::cmp::PartialEq;
 use std::collections::HashMap;
 use log::error;
 use crate::parse_dm::domain::data_model::DataModel;
+use crate::parse_dm::domain::resource::DMResource;
 use crate::parse_dm::domain::super_field::SuperField;
 use crate::parse_hcl::domain::prop_supplement::{PropSupplement};
 use crate::parse_hcl::domain::resource_supplement::{ResourceSupplType, ResourceSupplement};
@@ -112,7 +113,7 @@ impl TransientInstance {
 pub struct InstanceWrapper(pub(crate) DataRow);
 
 impl InstanceWrapper {
-    pub(crate) fn to_instance(&self, data_model: &&DataModel, separator: &String, row_nr_to_propname: &HashMap<usize, String>, row_nr_to_prop_suppl: &HashMap<usize, PropSupplement>, row_nr_to_res_suppl: &HashMap<usize, ResourceSupplement>, row_nr_to_id_label: &HashMap<usize, Header>, super_field: &SuperField, set_permissions: bool) -> Result<Instance, ExcelDataError> {
+    pub(crate) fn to_instance(&self, data_model: &&DataModel, separator: &String, row_nr_to_propname: &HashMap<usize, Vec<String>>, row_nr_to_prop_suppl: &HashMap<usize, Vec<PropSupplement>>, row_nr_to_res_suppl: &HashMap<usize, Vec<ResourceSupplement>>, row_nr_to_id_label: &HashMap<usize, Vec<Header>>, resource: &DMResource, set_permissions: bool) -> Result<Instance, ExcelDataError> {
         let mut transient_instance = TransientInstance::new();
         //transient_instance.add_resource_permissions(res_permissions);
         //let copyright_holder = extract_or_create_copyright_holder();
@@ -121,28 +122,43 @@ impl InstanceWrapper {
             if entries.is_empty() {
                 continue;
             }
-            entry_empty(&entries, row_nr)?;
+            entry_empty(&entries, row_nr, &resource.name, &self.0.row);
             if row_nr_to_propname.contains_key(&row_nr) {
-                let header = row_nr_to_propname.get(&row_nr).unwrap();
-                transient_instance.add_values_of_prop(header, entries.to_owned())?;
+                let headers = row_nr_to_propname.get(&row_nr).unwrap();
+                for header in headers {
+                    transient_instance.add_values_of_prop(header, entries.to_owned())?;
+                }
             }
             if row_nr_to_prop_suppl.contains_key(&row_nr) {
-                let prop_suppl = row_nr_to_prop_suppl.get(&row_nr).unwrap();
-                transient_instance.add_prop_suppl(prop_suppl.to_owned(), entries.to_owned());
+                let prop_suppls = row_nr_to_prop_suppl.get(&row_nr).unwrap();
+                for prop_suppl in prop_suppls {
+                    transient_instance.add_prop_suppl(prop_suppl.to_owned(), entries.to_owned());
+                }
             }
             if row_nr_to_res_suppl.contains_key(&row_nr) {
-                let res_suppl = row_nr_to_res_suppl.get(&row_nr).unwrap();
-                add_res_suppl_value(res_suppl, &entries,  &mut transient_instance)?;
+                let res_suppls = row_nr_to_res_suppl.get(&row_nr).unwrap();
+                for res_suppl in res_suppls {
+                    add_res_suppl_value(res_suppl, &entries,  &mut transient_instance)?;
+                }
             }
             if row_nr_to_id_label.contains_key(&row_nr) {
-                match row_nr_to_id_label.get(&row_nr).unwrap() {
-                    Header::ID => {
-                        todo!()
-                        //transient_instance.add_id(entry.to_string())?;
-                    }
-                    Header::Label => {
-                        todo!()
-                        //transient_instance.add_label(entry.to_string())?;
+                let headers =  row_nr_to_id_label.get(&row_nr).unwrap();
+                for header in headers {
+                    match header {
+                        Header::ID => {
+                            if entries.len() != 1 {
+                                return Err(ExcelDataError::InputError(format!("More than one entry for field id: {:?}", entries)));
+                            }
+                            let entry = entries.get(0).unwrap();
+                            transient_instance.add_id(entry.to_string())?;
+                        }
+                        Header::Label => {
+                            if entries.len() != 1 {
+                                return Err(ExcelDataError::InputError(format!("More than one entry for field label: {:?}", entries)));
+                            }
+                            let entry = entries.get(0).unwrap();
+                            transient_instance.add_label(entry.to_string())?;
+                        }
                     }
                 }
             } else {
@@ -151,7 +167,7 @@ impl InstanceWrapper {
         }
         transient_instance.found_id_label()?;
         let dasch_value_fields = FieldsWrapper(transient_instance.propname_to_values.to_owned(), transient_instance.prop_name_to_prop_suppl_values.to_owned()).to_dasch_value_fields(data_model, set_permissions)?;
-        let resource_data = to_resource_data(&transient_instance.res_suppl_values, super_field, set_permissions, separator)?;
+        let resource_data = to_resource_data(&transient_instance.res_suppl_values, &resource.super_field, set_permissions, separator)?;
         Ok(Instance::new(dasch_value_fields, resource_data, transient_instance.id.unwrap(), transient_instance.label.unwrap()))
     }
 }
@@ -176,13 +192,14 @@ fn no_white_space_no_line_break(entry: &str) -> String {
 
 }
 
-fn entry_empty(entries: &Vec<String>, nr: usize) -> Result<(), ExcelDataError> {
+fn entry_empty(entries: &Vec<String>, nr: usize, res_name: &String, curr_row: &Vec<Vec<String>>) -> () {
     for entry in entries.iter() {
         if entry.is_empty() {
-            return Err(ExcelDataError::InputError(format!("Instance: Found a empty entry in entries: {:?} in col-nr: {}", entries, nr)));
+            // todo log this
+            //return Err(ExcelDataError::InputError(format!("Instance of resource '{}': Found a empty entry '{:?}' at nr '{}' in row '{:?}'", res_name, entries, nr, curr_row)));
+            println!("Instance of resource '{}': Found a empty entry '{:?}' at nr '{}' in row '{:?}'", res_name, entries, nr, curr_row);
         }
     }
-    Ok(())
 }
 
 fn extract_or_create_copyright_holder() -> () {

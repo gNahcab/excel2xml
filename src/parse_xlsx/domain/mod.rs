@@ -19,3 +19,4 @@ pub mod updated_data_sheet;
 mod data_col;
 mod resource_data;
 mod license;
+mod hashmap_wrapper;

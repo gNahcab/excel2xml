@@ -1,6 +1,8 @@
 use std::cmp::PartialEq;
 use std::fmt::Debug;
 use crate::parse_dm::domain::gui_element::GUIElement;
+use crate::parse_dm::domain::object::ValueObject::TextValue;
+use crate::parse_dm::domain::property::Property;
 use crate::parse_xlsx::domain::dasch_value_field::TransientSupplementValueField;
 use crate::parse_xlsx::domain::encoding::Encoding;
 use crate::parse_xlsx::domain::permissions::Permissions;
@@ -46,26 +48,32 @@ impl TransientDaschValue {
             comment: None,
         }
     }
-    pub(crate) fn add_encoding(&mut self, encoding: Encoding, gui_element: &GUIElement) -> Result<(), ExcelDataError> {
-        match gui_element {
-            GUIElement::RICHTEXT => {
-                if encoding != Encoding::XML {
-                    return Err(ExcelDataError::InputError(format!("DaSCH-Value-Error: Encoding of '{}' should be xml, since Gui-Element is 'Richtext', but found: {}", self.value, encoding)));
+    pub(crate) fn add_encoding(&mut self, encoding: Encoding, curr_prop: &&&Property) -> Result<(), ExcelDataError> {
+        match &curr_prop.object {
+            TextValue => {
+                match &curr_prop.gui_element {
+                    GUIElement::RICHTEXT => {
+                        if encoding != Encoding::XML {
+                            return Err(ExcelDataError::InputError(format!("DaSCH-Value-Error: Encoding of '{}' should be xml, since Gui-Element is 'Richtext', but found: {}", self.value, encoding)));
+                        }
+                    }
+                    GUIElement::SIMPLETEXT => {
+                        if encoding != Encoding::UTF8 {
+                            return Err(ExcelDataError::InputError(format!("DaSCH-Value-Error: Encoding of '{}' should be utf8, since Gui-Element is 'Simpletext', but found: {}", self.value, encoding)));
+                        }
+                    }
+                    GUIElement::TEXTAREA => {
+                        if encoding != Encoding::UTF8 {
+                            return Err(ExcelDataError::InputError(format!("DaSCH-Value-Error: Encoding of '{}' should be utf8, since Gui-Element is 'TextArea', but found: {}", self.value, encoding)));
+                        }
+                    }
+                    _ => {
+                        // ignore
+                    }
                 }
             }
-            GUIElement::SIMPLETEXT => {
-                if encoding != Encoding::UTF8 {
-                    return Err(ExcelDataError::InputError(format!("DaSCH-Value-Error: Encoding of '{}' should be utf8, since Gui-Element is 'Simpletext', but found: {}", self.value, encoding)));
-                }
-            }
-            GUIElement::LIST => {}
-            GUIElement::DATE => {}
-            GUIElement::SEARCHBOX => {}
-            GUIElement::GEONAMES => {}
-            GUIElement::TEXTAREA => {
-                if encoding != Encoding::UTF8 {
-                    return Err(ExcelDataError::InputError(format!("DaSCH-Value-Error: Encoding of '{}' should be utf8, since Gui-Element is 'TextArea', but found: {}", self.value,  encoding)));
-                }
+            _=> {
+                // ignore
             }
         }
         self.encoding = Some(encoding);
@@ -77,41 +85,46 @@ impl TransientDaschValue {
     pub(crate) fn add_permissions(&mut self, permission: Permissions) {
         self.permission = Some(permission);
     }
-    pub(crate) fn complete(&mut self, gui_element: &GUIElement, set_permissions: bool) -> Result<(), ExcelDataError> {
+    pub(crate) fn complete(&mut self, curr_prop: &&&Property, set_permissions: bool) -> Result<(), ExcelDataError> {
+        match &curr_prop.object {
+            TextValue => {
+                match &curr_prop.gui_element {
+                    GUIElement::RICHTEXT => {
+                        if self.encoding.is_none() {
+                            //return Err(ExcelDataError::InputError(format!("Encoding of '{}' is None, but it is a TextValue.", self.value)));
+                            // set default (i.e. utf8)
+                            self.encoding = Some(Encoding::XML);
+                        }
+                    }
+                    GUIElement::SIMPLETEXT => {
+                        if self.encoding.is_none() {
+                            //return Err(ExcelDataError::InputError(format!("Encoding of '{}' is None, but it is a TextValue.", self.value)));
+                            // set default (i.e. utf8)
+                            self.encoding = Some(Encoding::UTF8);
+                        }
+                    }
+                    GUIElement::TEXTAREA => {
+                        if self.encoding.is_none() {
+                            //return Err(ExcelDataError::InputError(format!("Encoding of '{}' is None, but it is a TextValue.", self.value)));
+                            // set default (i.e. utf8)
+                            self.encoding = Some(Encoding::UTF8);
+                        }
+                    }
+                    _ => {
+                        // ignore
+                    }
+                }
+            }
+            _=> {
+                // ignore
+            }
+        }
         if self.permission.is_none() {
             if set_permissions {
                 // set default
                 self.permission = Some(Permissions::DEFAULT);
             }
             //return Err(ExcelDataError::InputError(format!("Permissions of DaschValue '{}' is None.", self.value)))
-
-        }
-        match gui_element {
-            GUIElement::RICHTEXT => {
-                    if self.encoding.is_none() {
-                        //return Err(ExcelDataError::InputError(format!("Encoding of '{}' is None, but it is a TextValue.", self.value)));
-                        // set default (i.e. utf8)
-                        self.encoding = Some(Encoding::XML);
-                    }
-            }
-            GUIElement::SIMPLETEXT => {
-                if self.encoding.is_none() {
-                    //return Err(ExcelDataError::InputError(format!("Encoding of '{}' is None, but it is a TextValue.", self.value)));
-                    // set default (i.e. utf8)
-                    self.encoding = Some(Encoding::UTF8);
-                }
-            }
-            GUIElement::LIST => {}
-            GUIElement::DATE => {}
-            GUIElement::SEARCHBOX => {}
-            GUIElement::GEONAMES => {}
-            GUIElement::TEXTAREA => {
-                if self.encoding.is_none() {
-                    //return Err(ExcelDataError::InputError(format!("Encoding of '{}' is None, but it is a TextValue.", self.value)));
-                    // set default (i.e. utf8)
-                    self.encoding = Some(Encoding::UTF8);
-                }
-            }
         }
         Ok(())
     }
@@ -119,7 +132,7 @@ impl TransientDaschValue {
 
 pub struct WrapperDaschValue(pub String);
 impl WrapperDaschValue {
-    pub(crate) fn to_dasch_value(&self, pos: usize, maybe_suppl_value: Option<&TransientSupplementValueField>, gui_element: &GUIElement, set_permissions: bool) -> Result<DaschValue, ExcelDataError> {
+    pub(crate) fn to_dasch_value(&self, pos: usize, maybe_suppl_value: Option<&TransientSupplementValueField>, curr_prop: &&Property, set_permissions: bool) -> Result<DaschValue, ExcelDataError> {
         let mut transient_dasch_value = TransientDaschValue::new(self.0.to_owned());
         if maybe_suppl_value.is_some() {
             if maybe_suppl_value.as_ref().unwrap().encoding.is_some() {
@@ -129,7 +142,7 @@ impl WrapperDaschValue {
                     }
                     Some(encoding) => {encoding}
                 };
-                transient_dasch_value.add_encoding(encoding.to_owned(), gui_element)?;
+                transient_dasch_value.add_encoding(encoding.to_owned(), &curr_prop)?;
             }
             if maybe_suppl_value.as_ref().unwrap().comment.is_some() {
                 let comment = match maybe_suppl_value.as_ref().unwrap().comment.as_ref().unwrap().get(pos) {
@@ -150,7 +163,9 @@ impl WrapperDaschValue {
                 transient_dasch_value.add_permissions(permissions.to_owned());
             }
         }
-        transient_dasch_value.complete(gui_element, set_permissions)?;
+        transient_dasch_value.complete(&curr_prop, set_permissions)?;
+        println!("value: {}", self.0);
+        println!("tdv: {:?}", transient_dasch_value.encoding);
         Ok(DaschValue::new(transient_dasch_value))
     }
 }

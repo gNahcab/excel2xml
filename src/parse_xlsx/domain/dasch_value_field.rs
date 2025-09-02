@@ -136,7 +136,7 @@ impl DaschValueFieldWrapper {
         self.check_values(curr_prop, data_model)?;
         let mut dasch_values = vec![];
         for (pos, value) in self.0.iter().enumerate() {
-            let dasch_value = WrapperDaschValue(value.to_owned()).to_dasch_value(pos, maybe_suppl_value, &curr_prop.gui_element, set_permissions)?;
+            let dasch_value = WrapperDaschValue(value.to_owned()).to_dasch_value(pos, maybe_suppl_value, &curr_prop, set_permissions)?;
             dasch_values.push(dasch_value);
         }
         Ok(DaschValueField::new(dasch_values, prop_name.to_owned()))
@@ -171,7 +171,7 @@ impl DaschValueFieldWrapper {
                     GUIElement::TEXTAREA => {
                         for value in self.0.iter() {
                             if value.contains("\n") {
-                                return Err(ExcelDataError::ParsingError(format!("The following value '{}' of property '{:?}' contains newline but newline should be replaced by '&#10;'.", value, curr_prop)))
+                                return Err(ExcelDataError::ParsingError(format!("The following value '{}' of property '{:?}' contains newline but newline should be replaced by '<£CP>'.", value, curr_prop)))
                             }
                         }
                         // no xml-tags allowed if SimpleText or TextArea
@@ -190,23 +190,27 @@ impl DaschValueFieldWrapper {
             ValueObject::GeonameValue => {
                 // we don't check if Geoname is correct, but we check if Geoname is a number
                 for value in self.0.iter() {
-                    let _ = match value.parse::<usize>() {
-                        Ok(_) => {}
-                        Err(_) => {
-                            return Err(ExcelDataError::InputError(format!("Cannot parse Geoname-Number of '{:?}' to usize: {}", curr_prop, value)));
-                        }
-                    };
+                    if !value.is_empty() {
+                        let _ = match value.parse::<usize>() {
+                            Ok(_) => {}
+                            Err(_) => {
+                                return Err(ExcelDataError::InputError(format!("Cannot parse Geoname-Number of '{:?}' to usize: {}", curr_prop, value)));
+                            }
+                        };
+                    }
                 }
             }
             ValueObject::DecimalValue => {
                 // check if parsing is possible
                 for value in self.0.iter() {
-                    let _ = match value.parse::<rust_decimal::Decimal>() {
-                        Ok(decimal) => { decimal }
-                        Err(error) => {
-                            return Err(ExcelDataError::InputError(format!("cannot parse '{}' to decimal: {:?} in {:?}", value, error, curr_prop)));
-                        }
-                    };
+                    if !value.is_empty() {
+                        let _ = match value.parse::<rust_decimal::Decimal>() {
+                            Ok(decimal) => { decimal }
+                            Err(error) => {
+                                return Err(ExcelDataError::InputError(format!("cannot parse '{}' to decimal: {:?} in {:?}", value, error, curr_prop)));
+                            }
+                        };
+                    }
                 }
             }
             ValueObject::ColorValue => {
@@ -215,37 +219,43 @@ impl DaschValueFieldWrapper {
             ValueObject::IntValue => {
                 // check if parsing is possible
                 for value in self.0.iter() {
-                    let _ = match value.parse::<usize>() {
-                        Ok(integer) => { integer }
-                        Err(error) => {
-                            return Err(ExcelDataError::InputError(format!("cannot parse '{}' to integer: {:?} in {:?}", value, error, curr_prop)));
-                        }
-                    };
+                    if !value.is_empty() {
+                        let _ = match value.parse::<usize>() {
+                            Ok(integer) => { integer }
+                            Err(error) => {
+                                return Err(ExcelDataError::InputError(format!("cannot parse '{}' to integer: {:?} in {:?}", value, error, curr_prop)));
+                            }
+                        };
+                    }
                 }
             }
             ValueObject::BooleanValue => {
                 if self.0.len() > 1 {
                     return Err(ExcelDataError::ParsingError(format!("Boolean-values are only allowed single, but found multiple: '{:?}' for property '{}'", self.0, curr_prop.name)))
                 }
-                let _: bool = match self.0.get(0).unwrap().trim().parse::<bool>()
-                {
-                    Ok(bool_val) => { bool_val }
-                    Err(error) => {
-                        return Err(ExcelDataError::ParsingError(format!("cannot parse '{}' from string to bool. Error message: {}", self.0.get(0).unwrap(), error)));
-                    }
-                };
+                if !self.0.is_empty() {
+                    let _: bool = match self.0.get(0).unwrap().trim().parse::<bool>()
+                    {
+                        Ok(bool_val) => { bool_val }
+                        Err(error) => {
+                            return Err(ExcelDataError::ParsingError(format!("cannot parse '{}' from string to bool. Error message: {}", self.0.get(0).unwrap(), error)));
+                        }
+                    };
+                }
             }
             ValueObject::TimeValue => {
                 // yyyy-mm-ddThh:mm:ss
                 // 2021-11-30T12:00:00+00:00
                 let re = Regex::new(r"^\d{4}-\d{2}-\d{2}\D{1}\d{2}:\d{2}:\d{2}+\d{2}:\d{2}").unwrap();
                 for value in self.0.iter() {
-                    let _ = match re.captures(value) {
-                        None => {
-                            return Err(ExcelDataError::ParsingError(format!("cannot parse '{}' to TimeValue", value)));
-                        }
-                        Some(_) => {}
-                    };
+                    if !value.is_empty() {
+                        let _ = match re.captures(value) {
+                            None => {
+                                return Err(ExcelDataError::ParsingError(format!("cannot parse '{}' to TimeValue", value)));
+                            }
+                            Some(_) => {}
+                        };
+                    }
                 }
             }
             ValueObject::Representation => {
@@ -336,6 +346,7 @@ impl FieldsWrapper {
 fn correct_list_values(values: &Vec<String>, list: &DaSCHList) -> Result<(), ExcelDataError> {
     // check if one name of node is equal to value
     let node_names: Vec<String> = collect_node_names(&list.nodes);
+
     for value in values.iter() {
         if value.is_empty() {
             // we just ignore for now if value is empty

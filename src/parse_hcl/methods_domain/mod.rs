@@ -19,3 +19,4 @@ pub mod integer_create;
 pub mod permissions_create;
 pub mod replace_label_name;
 pub mod update_with_server_method;
+pub mod separate_method;

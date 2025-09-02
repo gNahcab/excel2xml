@@ -7,7 +7,7 @@ use crate::parse_hcl::methods_domain::wrapper_trait_block::Wrapper;
 pub struct WrapperUpdateWithServer(pub(crate) hcl::Block);
 
 impl WrapperUpdateWithServer {
-    pub(crate) fn to_update_with_server_method(&self) -> Result<ReplaceWithIRI, HCLDataError> {
+    pub(crate) fn to_update_with_server_method(&self) -> Result<UpdateWithServer, HCLDataError> {
         let mut transient_structure = TransientStructureUpdateWithServerMethod::new(self.0.get_output()?);
         self.0.no_blocks()?;
         for attribute in self.0.attributes() {
@@ -24,20 +24,20 @@ impl WrapperUpdateWithServer {
             }
         }
         transient_structure.is_complete()?;
-        Ok(ReplaceWithIRI::new(transient_structure))
+        Ok(UpdateWithServer::new(transient_structure))
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct ReplaceWithIRI {
+pub struct UpdateWithServer {
     pub(crate) output: String,
     pub input: HeaderValue,
     pub resource: String
 }
 
-impl ReplaceWithIRI {
-    fn new(transient_structure: TransientStructureUpdateWithServerMethod) -> ReplaceWithIRI {
-        ReplaceWithIRI { output: transient_structure.output,
+impl UpdateWithServer {
+    fn new(transient_structure: TransientStructureUpdateWithServerMethod) -> UpdateWithServer {
+        UpdateWithServer { output: transient_structure.output,
             input: transient_structure.input.unwrap(),
             resource: transient_structure.resource.unwrap()}
     }

@@ -9,7 +9,7 @@ use crate::parse_hcl::header_value::HeaderValue;
 use crate::parse_xlsx::domain::data_col::DataCol;
 use crate::parse_xlsx::domain::data_row::DataRow;
 use crate::parse_xlsx::domain::intermediate_sheet::IntermediateSheet;
-use crate::parse_xlsx::domain::manipulations::{perform_combine, perform_alter, perform_create, perform_lower, perform_replace, perform_to_date, perform_upper, perform_replace_label_name, perform_replace_with_iri};
+use crate::parse_xlsx::domain::manipulations::{perform_combine, perform_alter, perform_create, perform_lower, perform_replace, perform_to_date, perform_upper, perform_replace_label_name, perform_replace_with_iri, perform_separate};
 
 #[derive(Clone)]
 pub struct ExpandedDataSheet {
@@ -122,10 +122,10 @@ fn header_to_col_nr(assignments: &Assignments, col_nr_to_data_col: &HashMap<usiz
 fn create_data(mut col_nr_to_cols_expanded: HashMap<usize, DataCol>, mut header_to_col_nr_expanded: HashMap<String, usize>, sheet_info: &SheetInfo, data_model: &&DataModel, res_name_iri: &HashMap<String, HashMap<String, String>>, separator: &String) -> Result<(HashMap<usize, DataCol>, HashMap<String, usize>), HCLDataError> {
     let transformations = sheet_info.transformations.as_ref().unwrap();
     for replace_method in &transformations.replace_methods {
-        let data_col = perform_replace(replace_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded, separator)?;
+        let data_col = perform_replace(replace_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded)?;
         add_to_header_cols(&mut header_to_col_nr_expanded, &mut col_nr_to_cols_expanded, data_col);
     }
-    for replace_with_iri in &transformations.replace_with_iri {
+    for replace_with_iri in &transformations.update_with_server_methods {
         let data_col = perform_replace_with_iri(replace_with_iri, &col_nr_to_cols_expanded, &header_to_col_nr_expanded, res_name_iri, separator)?;
         add_to_header_cols(&mut header_to_col_nr_expanded, &mut col_nr_to_cols_expanded, data_col);
     }
@@ -169,6 +169,12 @@ fn create_data(mut col_nr_to_cols_expanded: HashMap<usize, DataCol>, mut header_
     for alter_method in &transformations.alter_methods {
         let data_col = perform_alter(alter_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded)?;
         add_to_header_cols(&mut header_to_col_nr_expanded, &mut col_nr_to_cols_expanded, data_col);
+    }
+    for separate_method in &transformations.separate_methods {
+        let data_cols = perform_separate(separate_method, &col_nr_to_cols_expanded, &header_to_col_nr_expanded)?;
+        for data_col in data_cols {
+            add_to_header_cols(&mut header_to_col_nr_expanded, &mut col_nr_to_cols_expanded, data_col);
+        }
     }
     Ok((col_nr_to_cols_expanded, header_to_col_nr_expanded))
 }

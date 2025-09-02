@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use crate::parse_dm::domain::cardinality::Cardinality;
-use crate::parse_dm::domain::data_model::DataModel;
 use crate::parse_dm::domain::property::Property;
 use crate::parse_dm::domain::resource::DMResource;
 use crate::parse_hcl::domain::supplements::{Supplements};
@@ -11,6 +10,7 @@ use crate::parse_xlsx::domain::header::Header;
 use crate::parse_xlsx::domain::transient_data_header::TransientDataHeader;
 use crate::parse_xlsx::errors::ExcelDataError;
 
+use crate::parse_xlsx::domain::hashmap_wrapper::Wrapper;
 #[derive(Debug)]
 pub struct DataHeader {
     pub id: usize,
@@ -25,16 +25,20 @@ pub struct DataHeader {
 pub(crate) struct DataHeaderWrapper(pub(crate) HashMap<String, usize>);
 
 impl DataHeaderWrapper {
-    pub(crate) fn to_data_header(&self, resource: &DMResource, row_nr_to_propname: &HashMap<usize, String>, row_nr_to_prop_suppl: &HashMap<usize, PropSupplement>, row_nr_to_res_suppl: &HashMap<usize, ResourceSupplement>, row_nr_to_id_label: &HashMap<usize, Header>) -> Result<DataHeader, ExcelDataError> {
+    pub(crate) fn to_data_header(&self, resource: &DMResource, row_nr_to_propname: &HashMap<usize, Vec<String>>, row_nr_to_prop_suppl: &HashMap<usize, Vec<PropSupplement>>, row_nr_to_res_suppl: &HashMap<usize, Vec<ResourceSupplement>>, row_nr_to_id_label: &HashMap<usize, Vec<Header>>) -> Result<DataHeader, ExcelDataError> {
+        println!("row_nr_to_id_label: {:?}",row_nr_to_id_label);
         let mut transient_data_header = TransientDataHeader::new();
         for (pos, id_label) in row_nr_to_id_label {
-            match id_label {
-                Header::ID => {
-                    transient_data_header.add_id_pos(pos.to_owned())?;
+            for idorlabel in id_label {
+                match idorlabel {
+                    Header::ID => {
+                        transient_data_header.add_id_pos(pos.to_owned())?;
+                    }
+                    Header::Label => {
+                        transient_data_header.add_label_pos(pos.to_owned())?;
+                    }
                 }
-                Header::Label => {
-                    transient_data_header.add_label_pos(pos.to_owned())?;
-                }
+
             }
         }
         add_propnames(&mut transient_data_header, &row_nr_to_propname, resource)?;
@@ -59,11 +63,12 @@ impl DataHeader {
     }
 }
 
-pub fn discern_label_id_propnames_and_supplements(header_to_col_nr: &HashMap<String, usize>, properties: &Vec<Property>, supplements: Option<&Supplements>) -> Result<(HashMap<usize, String>, HashMap<usize, PropSupplement>, HashMap<usize, ResourceSupplement>, HashMap<usize, Header>), ExcelDataError> {
-    let mut col_to_propname: HashMap<usize, String> = HashMap::new();
-    let mut col_to_prop_suppl: HashMap<usize, PropSupplement> = HashMap::new();
-    let mut col_to_res_suppl: HashMap<usize, ResourceSupplement> = HashMap::new();
-    let mut col_to_id_label: HashMap<usize, Header> = HashMap::new();
+pub fn discern_label_id_propnames_and_supplements(header_to_col_nr: &HashMap<String, usize>, properties: &Vec<Property>, supplements: Option<&Supplements>) -> Result<(HashMap<usize, Vec<String>>, HashMap<usize, Vec<PropSupplement>>, HashMap<usize, Vec<ResourceSupplement>>, HashMap<usize, Vec<Header>>), ExcelDataError> {
+    println!("header_to_col_nr: {:?}", header_to_col_nr);
+    let mut col_to_propname: HashMap<usize, Vec<String>> = HashMap::new();
+    let mut col_to_prop_suppl: HashMap<usize, Vec<PropSupplement>> = HashMap::new();
+    let mut col_to_res_suppl: HashMap<usize, Vec<ResourceSupplement>> = HashMap::new();
+    let mut col_to_id_label: HashMap<usize, Vec<Header>> = HashMap::new();
 
     let id_label = ["id", "label"];
     let propnames: Vec<&String> = properties.iter().map(|property|&property.name).collect();
@@ -73,29 +78,30 @@ pub fn discern_label_id_propnames_and_supplements(header_to_col_nr: &HashMap<Str
             match supplements.unwrap().header_to_res_suppl.get(raw_header) {
                 None => {}
                 Some(res_suppl) => {
-                    col_to_res_suppl.insert(pos.to_owned(), res_suppl.to_owned());
+                    col_to_res_suppl.insert_or_append(pos, res_suppl.to_owned());
                     continue;
                 }
             }
             match supplements.unwrap().header_to_prop_suppl.get(raw_header) {
                 None => {}
                 Some(prop_suppl) => {
-                    col_to_prop_suppl.insert(pos.to_owned(), prop_suppl.to_owned());
+                    col_to_prop_suppl.insert_or_append(pos, prop_suppl.to_owned());
                     continue;
                 }
             }
         }
         if propnames.contains(&raw_header) {
-            col_to_propname.insert(*pos, raw_header.to_owned());
+            col_to_propname.insert_or_append(pos, raw_header.to_owned());
         } else {
             let lowered = raw_header.to_lowercase();
+            println!("lowered: {}", lowered);
             if id_label.contains(&lowered.as_str()) {
                 match lowered.as_str() {
                     "id" => {
-                        col_to_id_label.insert(pos.to_owned(), Header::ID);
+                        col_to_id_label.insert_or_append(pos, Header::ID);
                     }
                     "label" => {
-                        col_to_id_label.insert(pos.to_owned(), Header::Label);
+                        col_to_id_label.insert_or_append(pos, Header::Label);
                     }
                     _ => {panic!()}
                 }
@@ -156,56 +162,62 @@ fn compare_header_to_res_prop(res_name: &String, res_prop_values: &Vec<&Header>)
     Ok(())
 }
 
-fn add_props_of_res(mut transient_data_header: &mut TransientDataHeader, row_nr_to_res_suppl: &&HashMap<usize, ResourceSupplement>) -> Result<(), ExcelDataError> {
-    for (pos, res_suppl) in row_nr_to_res_suppl.iter() {
-        match res_suppl.suppl_type {
-            ResourceSupplType::IRI => {
-                transient_data_header.add_iri_pos(pos.to_owned())?;
-            }
-            ResourceSupplType::ARK => {
-                transient_data_header.add_ark_pos(pos.to_owned())?;
-            }
-            ResourceSupplType::Permissions => {
-                transient_data_header.add_permissions_pos(pos.to_owned())?;
-            }
-            ResourceSupplType::Bitstream => {
-                transient_data_header.add_bitstream_pos(pos.to_owned())?;
-            }
-            ResourceSupplType::BitstreamPermissions => {
-                transient_data_header.add_bitstream_permissions_pos(pos.to_owned())?;
-            }
-            ResourceSupplType::Authorship => {
-                transient_data_header.add_authorship_pos(pos.to_owned())?;
-            }
-            ResourceSupplType::License => {
-                transient_data_header.add_license_pos(pos.to_owned())?;
-            }
-            ResourceSupplType::CopyrightHolder => {
-                transient_data_header.add_copyright_holder_pos(pos.to_owned())?;
+fn add_props_of_res(mut transient_data_header: &mut TransientDataHeader, row_nr_to_res_suppl: &&HashMap<usize, Vec<ResourceSupplement>>) -> Result<(), ExcelDataError> {
+    for (pos, res_suppls) in row_nr_to_res_suppl.iter() {
+        for res_suppl in res_suppls {
+            match res_suppl.suppl_type {
+                ResourceSupplType::IRI => {
+                    transient_data_header.add_iri_pos(pos.to_owned())?;
+                }
+                ResourceSupplType::ARK => {
+                    transient_data_header.add_ark_pos(pos.to_owned())?;
+                }
+                ResourceSupplType::Permissions => {
+                    transient_data_header.add_permissions_pos(pos.to_owned())?;
+                }
+                ResourceSupplType::Bitstream => {
+                    transient_data_header.add_bitstream_pos(pos.to_owned())?;
+                }
+                ResourceSupplType::BitstreamPermissions => {
+                    transient_data_header.add_bitstream_permissions_pos(pos.to_owned())?;
+                }
+                ResourceSupplType::Authorship => {
+                    transient_data_header.add_authorship_pos(pos.to_owned())?;
+                }
+                ResourceSupplType::License => {
+                    transient_data_header.add_license_pos(pos.to_owned())?;
+                }
+                ResourceSupplType::CopyrightHolder => {
+                    transient_data_header.add_copyright_holder_pos(pos.to_owned())?;
+                }
             }
         }
     }
     Ok(())
 }
-fn add_propnames(transient_data_header: &mut TransientDataHeader, pos_to_propname: &HashMap<usize, String>, resource: &DMResource) -> Result<(), ExcelDataError> {
+fn add_propnames(transient_data_header: &mut TransientDataHeader, pos_to_propname: &&HashMap<usize, Vec<String>>, resource: &DMResource) -> Result<(), ExcelDataError> {
     let propnames_dm: Vec<_> = resource.properties.iter().map(|prop|&prop.propname).collect();
     _add_propnames(transient_data_header, pos_to_propname, &propnames_dm, resource.name.as_str())?;
     Ok(())
 }
 
-fn _add_propnames(transient_data_header: &mut TransientDataHeader, pos_to_propname: &HashMap<usize, String>, propnames_dm: &Vec<&String>, res_name: &str) -> Result<(), ExcelDataError>{
-    for (pos, propname) in pos_to_propname.iter() {
-        if !propnames_dm.contains(&propname) {
-            return Err(ExcelDataError::ParsingError(format!("Propname '{}' is a propname, but it is not part of resource '{}'", propname, res_name)));
+fn _add_propnames(transient_data_header: &mut TransientDataHeader, pos_to_propname: &&HashMap<usize, Vec<String>>, propnames_dm: &Vec<&String>, res_name: &str) -> Result<(), ExcelDataError>{
+    for (pos, propnames) in pos_to_propname.iter() {
+        for propname in propnames {
+            if !propnames_dm.contains(&propname) {
+                return Err(ExcelDataError::ParsingError(format!("Propname '{}' is a propname, but it is not part of resource '{}'", propname, res_name)));
+            }
+            transient_data_header.add_propname(propname.to_owned(), pos.to_owned())?;
         }
-        transient_data_header.add_propname(propname.to_owned(), pos.to_owned())?;
     }
     Ok(())
 }
 
-pub(crate) fn add_prop_suppl(transient_data_header: &mut TransientDataHeader, row_nr_to_prop_suppl: &HashMap<usize, PropSupplement>) {
-    for (pos, prop_suppl) in row_nr_to_prop_suppl {
-        transient_data_header.add_prop_suppl(prop_suppl.to_owned(), pos.to_owned());
+pub(crate) fn add_prop_suppl(transient_data_header: &mut TransientDataHeader, row_nr_to_prop_suppl: &&HashMap<usize, Vec<PropSupplement>>) {
+    for (pos, prop_suppls) in row_nr_to_prop_suppl.iter() {
+        for prop_suppl in prop_suppls {
+            transient_data_header.add_prop_suppl(prop_suppl.to_owned(), pos.to_owned());
+        }
     }
 }
 fn add_perm_comm_encod_of_properties(transient_data_header: &mut TransientDataHeader, pos_to_special_header: &HashMap<usize, Header>, pos_to_propname: &HashMap<usize, String>) -> Result<(), ExcelDataError>{

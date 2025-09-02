@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::hash::Hash;
-use calamine::{Data, DataType, ExcelDateTime, Range};
-use crate::operations::clean_string;
+use calamine::{Data, DataType};
+use crate::operations::{clean_header_string, clean_value};
 use crate::parse_xlsx::domain::data_col::{DataCol};
 use crate::parse_xlsx::errors::ExcelDataError;
 use crate::read_xlsx::sheet::Sheet;
@@ -41,18 +41,18 @@ impl IntermediateSheetWrapper {
         }
         for row in self.0.table.rows() {
             for (col_nr, value) in row.iter().enumerate() {
-                let value: String = parse_data_to_string(value)?;
+                let value: String = clean_value(parse_data_to_string(value)?.as_str());
                 cols[col_nr].push(value)
             }
         }
         for (col_id, col) in cols.iter().enumerate() {
             let (head, sliced_col) = col.split_at(1);
-            let head = clean_string(&head[0]);
+            let head = clean_header_string(&head[0]);
             let splitted_col:Vec<_> = sliced_col
                 .iter()
                 .map(|value|value
                     .split(separator)
-                .map(|value|value.to_owned()
+                .map(|value|clean_value(value)
                     ).collect::<Vec<_>>()).collect();
             let data_col: DataCol = DataCol::new(splitted_col, head);
             data_sheet.add_col(col_id, data_col);
