@@ -119,26 +119,27 @@ impl InstanceWrapper {
         //let copyright_holder = extract_or_create_copyright_holder();
         //transient_instance.add_copyright_holder(copyright_holder);
         for (row_nr, entries) in self.0.row.iter().enumerate() {
-            if entries.is_empty() {
+            let entries_no_ws = remove_whitespace_entries(&entries);
+            if entries_no_ws.is_empty() {
                 continue;
             }
-            entry_empty(&entries, row_nr, &resource.name, &self.0.row);
+            entry_empty(&entries_no_ws, row_nr, &resource.name, &self.0.row);
             if row_nr_to_propname.contains_key(&row_nr) {
                 let headers = row_nr_to_propname.get(&row_nr).unwrap();
                 for header in headers {
-                    transient_instance.add_values_of_prop(header, entries.to_owned())?;
+                    transient_instance.add_values_of_prop(header, entries_no_ws.to_owned())?;
                 }
             }
             if row_nr_to_prop_suppl.contains_key(&row_nr) {
                 let prop_suppls = row_nr_to_prop_suppl.get(&row_nr).unwrap();
                 for prop_suppl in prop_suppls {
-                    transient_instance.add_prop_suppl(prop_suppl.to_owned(), entries.to_owned());
+                    transient_instance.add_prop_suppl(prop_suppl.to_owned(), entries_no_ws.to_owned());
                 }
             }
             if row_nr_to_res_suppl.contains_key(&row_nr) {
                 let res_suppls = row_nr_to_res_suppl.get(&row_nr).unwrap();
                 for res_suppl in res_suppls {
-                    add_res_suppl_value(res_suppl, &entries,  &mut transient_instance)?;
+                    add_res_suppl_value(res_suppl, &entries_no_ws, &mut transient_instance)?;
                 }
             }
             if row_nr_to_id_label.contains_key(&row_nr) {
@@ -146,17 +147,17 @@ impl InstanceWrapper {
                 for header in headers {
                     match header {
                         Header::ID => {
-                            if entries.len() != 1 {
-                                return Err(ExcelDataError::InputError(format!("More than one entry for field id: {:?}", entries)));
+                            if entries_no_ws.len() != 1 {
+                                return Err(ExcelDataError::InputError(format!("More than one entry for field id: {:?}", entries_no_ws)));
                             }
-                            let entry = entries.get(0).unwrap();
+                            let entry = entries_no_ws.get(0).unwrap();
                             transient_instance.add_id(entry.to_string())?;
                         }
                         Header::Label => {
-                            if entries.len() != 1 {
-                                return Err(ExcelDataError::InputError(format!("More than one entry for field label: {:?}", entries)));
+                            if entries_no_ws.len() != 1 {
+                                return Err(ExcelDataError::InputError(format!("More than one entry for field label: {:?}", entries_no_ws)));
                             }
-                            let entry = entries.get(0).unwrap();
+                            let entry = entries_no_ws.get(0).unwrap();
                             transient_instance.add_label(entry.to_string())?;
                         }
                     }
@@ -171,6 +172,17 @@ impl InstanceWrapper {
         Ok(Instance::new(dasch_value_fields, resource_data, transient_instance.id.unwrap(), transient_instance.label.unwrap()))
     }
 }
+
+fn remove_whitespace_entries(entries: &Vec<String>) ->  Vec<String> {
+    // filter out strings that contain only '""'
+    entries.
+        iter().
+        map(|value|value.trim()).
+        skip_while(|value|value.eq(&"")).
+        map(|value|value.to_string())
+        .collect::<Vec<String>>()
+}
+
 
 fn add_res_suppl_value(res_suppl: &ResourceSupplement, entries: &Vec<String>, transient_instance: &mut TransientInstance) -> Result<(), ExcelDataError> {
     if entries.len() != 1 && !res_suppl.suppl_type.eq(&ResourceSupplType::Authorship)  {
@@ -197,7 +209,7 @@ fn entry_empty(entries: &Vec<String>, nr: usize, res_name: &String, curr_row: &V
         if entry.is_empty() {
             // todo log this
             //return Err(ExcelDataError::InputError(format!("Instance of resource '{}': Found a empty entry '{:?}' at nr '{}' in row '{:?}'", res_name, entries, nr, curr_row)));
-            println!("Instance of resource '{}': Found a empty entry '{:?}' at nr '{}' in row '{:?}'", res_name, entries, nr, curr_row);
+            //println!("Instance of resource '{}': Found a empty entry '{:?}' at nr '{}' in row '{:?}'", res_name, entries, nr, curr_row);
         }
     }
 }

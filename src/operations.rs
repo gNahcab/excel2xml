@@ -101,7 +101,6 @@ pub fn clean_header_string(header: &String) -> String {
 }
 
 pub fn clean_value(value: &str) -> String {
-    // remove whitespace and \n (new line)
     value.trim().to_owned()
 }
 fn res_names_iris(transformations: &Vec<&Transformations>, shortcode: &String) -> Result<HashMap<String, HashMap<String, String>>, Excel2XmlError> {

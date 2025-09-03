@@ -91,6 +91,7 @@ impl ExpandedDataSheetWrapper {
 fn header_to_col_nr(assignments: &Assignments, col_nr_to_data_col: &HashMap<usize, DataCol>) -> Result<HashMap<String, usize>, HCLDataError> {
     // here we link all headers to their col-nr
     // don't replace or remove 'old' headers here, filter later
+
     let mut header_to_col_nr:HashMap<String, usize> = col_nr_to_data_col.iter().map(|(col_id, data_col)|(data_col.head.to_owned(), col_id.to_owned())).collect();
 
     for (new_header, old_header_token) in assignments.propname_to_header.iter() {

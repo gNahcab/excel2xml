@@ -29,8 +29,8 @@ impl DataHeaderWrapper {
         println!("row_nr_to_id_label: {:?}",row_nr_to_id_label);
         let mut transient_data_header = TransientDataHeader::new();
         for (pos, id_label) in row_nr_to_id_label {
-            for idorlabel in id_label {
-                match idorlabel {
+            for id_or_label in id_label {
+                match id_or_label {
                     Header::ID => {
                         transient_data_header.add_id_pos(pos.to_owned())?;
                     }
@@ -94,7 +94,6 @@ pub fn discern_label_id_propnames_and_supplements(header_to_col_nr: &HashMap<Str
             col_to_propname.insert_or_append(pos, raw_header.to_owned());
         } else {
             let lowered = raw_header.to_lowercase();
-            println!("lowered: {}", lowered);
             if id_label.contains(&lowered.as_str()) {
                 match lowered.as_str() {
                     "id" => {
@@ -219,56 +218,4 @@ pub(crate) fn add_prop_suppl(transient_data_header: &mut TransientDataHeader, ro
             transient_data_header.add_prop_suppl(prop_suppl.to_owned(), pos.to_owned());
         }
     }
-}
-fn add_perm_comm_encod_of_properties(transient_data_header: &mut TransientDataHeader, pos_to_special_header: &HashMap<usize, Header>, pos_to_propname: &HashMap<usize, String>) -> Result<(), ExcelDataError>{
-    /*
-    let mut positions_special_prop: Vec<_> = pos_to_special_header.keys().collect::<Vec<_>>();
-    positions_special_prop.sort();
-
-    for (pos, prop_name) in pos_to_propname.iter() {
-        let mut curr = pos.to_owned();
-        //let mut transient_subheader = TransientSubheader::new();
-        loop {
-            curr += 1;
-            if pos_to_propname.contains_key(&curr) {
-                // curr is a propname, so we won't find any permissions etc. for the propname before
-                break
-            }
-            if positions_special_prop.last().unwrap() < &&curr {
-                // last special prop passed, we would loop into infinity otherwise
-                break
-            }
-            let header = match pos_to_special_header.get(&curr) {
-                None => {
-                    // position was filtered out before, so it doesn't exist
-                    // and we can continue by adding +1 to curr
-                    continue
-                }
-                Some(header) => {header}
-            };
-            match header {
-                Header::Permissions => {
-                    transient_subheader.add_permissions(curr, prop_name)?;
-                }
-                Header::Comment => {
-                    transient_subheader.add_comment(curr, prop_name)?;
-                }
-                Header::Encoding => {
-                    transient_subheader.add_encoding(curr, prop_name)?;
-                }
-                _=> {
-                    // if not encoding, permissions, comment
-                    break;
-                }
-            }
-        }
-        if transient_subheader.has_values() {
-            println!("values: subheader: {:?}", transient_subheader);
-            let subheader = Subheader::new(transient_subheader.permissions, transient_subheader.encoding, transient_subheader.comment);
-            transient_data_header.propname_to_subheader.insert(prop_name.to_string(), subheader);
-        }
-    }
-
-     */
-    Ok(())
 }

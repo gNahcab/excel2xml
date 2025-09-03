@@ -164,8 +164,6 @@ impl WrapperDaschValue {
             }
         }
         transient_dasch_value.complete(&curr_prop, set_permissions)?;
-        println!("value: {}", self.0);
-        println!("tdv: {:?}", transient_dasch_value.encoding);
         Ok(DaschValue::new(transient_dasch_value))
     }
 }

@@ -16,6 +16,7 @@ impl Assignments {
         Assignments{ propname_to_header: transient_assignments.header_to_propname, find_rest: transient_assignments.find_rest.unwrap()}
     }
 }
+#[derive(Debug)]
 struct TransientAssignments {
     header_to_propname: HashMap<String, HeaderValue>,
     find_rest: Option<bool>
